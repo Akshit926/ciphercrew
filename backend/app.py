@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes import parse
-#from routes import validate, chat, reconcile, export
+from routes import validate, chat, reconcile, export
 
 
 app = FastAPI(

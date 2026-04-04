@@ -531,12 +531,12 @@ def sanitize(raw):
     return raw.strip()
 
 
-def detect_delimeters(raw):
+def detect_delimiters(raw):
     raw = sanitize(raw)
 
-    if not raw.startWith("ISA"):
+    if not raw.startswith("ISA"):
         raise ValueError("file doesn't start with ISA segment : Invalid or incompleted fiel.")
-    elemept_sep = raw[3]
+    element_sep = raw[3]
     sub_element_sep = raw[104] if len(raw) > 104 else ":"
     segment_terminator = raw[105] if len(raw) > 105 else "~"
     
@@ -546,24 +546,24 @@ def detect_delimeters(raw):
         "segment_terminator" : segment_terminator
     }
 
-def tokenize(raw, delimeters):
-    segment_terminator = delimeters["segment_terminator"]
-    element_sep = delimeters["element_sep"]
-    sub_element_sep = delimeters["sub_element_sep"]
+def tokenize(raw, delimiters):
+    segment_terminator = delimiters["segment_terminator"]
+    element_sep = delimiters["element_sep"]
+    sub_element_sep = delimiters["sub_element_sep"]
 
     raw = sanitize(raw)
 
-    raw_segments = [s.strip() for s in raw.split(seg_term) if s.strip()]
+    raw_segments = [s.strip() for s in raw.split(segment_terminator) if s.strip()]
 
     segments = []
     warnings = []
 
     for index, raw_seg in enumerate(raw_segments):
-        if not raw_seg[0].isaplha():
+        if not raw_seg[0].isalpha():
             warnings.append({
                 "type": "MALFORMED_SEGMENT",
                 "position" : index,
-                "detail" : f"segment at position {index} starts with unexpected chracter '{raw_seg[0]}'"
+                "detail" : f"segment at position {index} starts with unexpected character '{raw_seg[0]}'"
             })
 
             raw_seg = raw_seg.lstrip("0123456789 ")

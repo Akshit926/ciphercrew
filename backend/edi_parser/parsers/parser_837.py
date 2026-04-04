@@ -1,7 +1,7 @@
 
-from .core import build_segment_dict
+from ..core import build_segment_dict
     
-from .codes import (
+from ..codes import (
     NM1_ENTITY_NAMES,
     FACILITY_TYPE_NAMES,
 )

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 import zipfile
 import io
 from edi_parser import parse
-#from edi_parser.validator import validate_static
+from edi_parser.validator import validate_static
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ async def parse_edi(file: UploadFile = File(...)):
 
         result = parse(raw)
         result["raw"] = raw  
-        #val_res = validate_static(result)
+        val_res = validate_static(result)
 
         status = 207 if result.get("errors") else 200
         return JSONResponse(content={"batch": False, "parsed": result, "validation": val_res}, status_code=status)
