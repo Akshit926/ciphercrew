@@ -49,6 +49,7 @@ async def parse_edi(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
         result = parse(raw)
+        result["raw"] = raw  
         val_res = validate_static(result)
 
         status = 207 if result.get("errors") else 200

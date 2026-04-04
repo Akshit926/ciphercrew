@@ -605,6 +605,79 @@ def _segment_name(seg_id: str) -> str:
         "ICM": "Individual Income",
         "LUI": "Language Use",
     }
+
+def sanitize(raw):
+    raw = raw.lstrip("\ufeff")
+    raw = raw.replace("\r\n", "").replace("\r", "").replace("\n", "")
+    return raw.strip()
+
+
+def detect_delimiters(raw):
+    raw = sanitize(raw)
+
+    if not raw.startswith("ISA"):
+        raise ValueError("file doesn't start with ISA segment : Invalid or incompleted fiel.")
+    element_sep = raw[3]
+    sub_element_sep = raw[104] if len(raw) > 104 else ":"
+    segment_terminator = raw[105] if len(raw) > 105 else "~"
+    
+    return {
+        "element_sep" : element_sep,
+        "sub_element_sep" : sub_element_sep,
+        "segment_terminator" : segment_terminator
+    }
+
+def tokenize(raw, delimiters):
+    segment_terminator = delimiters["segment_terminator"]
+    element_sep = delimiters["element_sep"]
+    sub_element_sep = delimiters["sub_element_sep"]
+
+    raw = sanitize(raw)
+
+    raw_segments = [s.strip() for s in raw.split(segment_terminator) if s.strip()]
+
+    segments = []
+    warnings = []
+
+    for index, raw_seg in enumerate(raw_segments):
+        if not raw_seg[0].isalpha():
+            warnings.append({
+                "type": "MALFORMED_SEGMENT",
+                "position" : index,
+                "detail" : f"segment at position {index} starts with unexpected character '{raw_seg[0]}'"
+            })
+
+            raw_seg = raw_seg.lstrip("0123456789 ")
+        
+        parts = raw_seg.split(element_sep)
+        seg_id = parts[0].strip()
+        raw_elements = parts[1:]
+
+        parsed_elements = []
+        for elem in raw_elements:
+            if sub_element_sep in elem:
+                parsed_elements.append(elem.split(sub_element_sep))
+            else:
+                parsed_elements.append(elem)
+        
+        label_map = ELEMENT_LABELS.get(seg_id, {})
+        elements = {}
+        for i, val in enumerate(parsed_elements):
+            key = f"{seg_id}{str(i+1).zfill(2)}"
+            label = label_map.get(str(i+1).zfill(2)), f"Element {str(i+1).zfill(2)}"
+            elements[key] = {"label": label, "value": val}
+
+        segments.append({
+            "id": seg_id,
+            "name" : _segment_name(seg_id),
+            "raw_elements":parsed_elements,
+            "elements" : elements,
+        })
+    return segments, warnings
+
+
+def _segment_name(seg_id):  
+    names = SEGMENT_NAMES
     return names.get(seg_id, seg_id)
 
 

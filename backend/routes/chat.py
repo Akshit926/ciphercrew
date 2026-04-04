@@ -86,10 +86,10 @@ def chat(body: ChatRequest):
     Returns AI response as plain text.
     """
     if not client:
-        raise HTTPException(
-            status_code=503,
-            detail="Groq API key not configured. Set GROQ_API_KEY env variable."
-        )
+        return JSONResponse(content={
+            "reply": "⚠️ AI Assistant is currently offline. Please configure your `GROQ_API_KEY` in the `backend/.env` file to activate the LLM.", 
+            "role": "model"
+        })
 
     try:
         # 1. Initialize messages with the System Prompt
