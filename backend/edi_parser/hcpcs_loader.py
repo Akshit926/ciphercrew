@@ -1,3 +1,10 @@
+"""
+HCPCS Local Code Loader
+Parses HCPC2026_APR_ANWEB.txt into a fast lookup dict.
+Only Level II codes (A-Z prefix) are in this file.
+CPT codes (99xxx, 8xxxx etc) are AMA-copyrighted and resolved via NLM API.
+"""
+
 import os
 from functools import lru_cache
 
@@ -40,23 +47,32 @@ def _load(filepath: str = None):
     _LOADED = True
 
 
-def lookup(code: str) -> dict | None:
+from typing import Optional
+
+def lookup(code: str) -> Optional[dict]:
+    """
+    Look up a HCPCS Level II code.
+    Returns dict with short_desc, long_desc, source — or None if not found.
+    """
     _load()
     return _HCPCS_DATA.get(code.upper().strip())
 
 
-def is_valid_hcpcs(code: str):
+def is_valid_hcpcs(code: str) -> bool:
+    """Check if code exists in HCPCS local file."""
     _load()
     return code.upper().strip() in _HCPCS_DATA
 
 
-def is_level_ii(code: str):
+def is_level_ii(code: str) -> bool:
+    """Level II codes start with A-Z (not purely numeric)."""
     if not code:
         return False
     return code[0].isalpha()
 
 
-def is_cpt(code: str):
+def is_cpt(code: str) -> bool:
+    """CPT codes are 5-digit numeric (Level I). Not in local file."""
     return bool(code) and code.isdigit() and len(code) == 5
 
 

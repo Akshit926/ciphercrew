@@ -1,8 +1,21 @@
+"""
+ClaimCraft Live API Validator
+Async checks against:
+  - CMS NPPES NPI Registry
+  - NLM ICD-10-CM API
+  - NLM HCPCS/CPT API (for CPT codes not in local HCPCS file)
+  - Local HCPCS 2026 file (Level II codes)
+"""
 
 import asyncio
 import aiohttp
 from typing import Optional
 from .hcpcs_loader import lookup as hcpcs_lookup, is_level_ii, is_cpt
+
+
+# ─────────────────────────────────────────────
+# API ENDPOINTS
+# ─────────────────────────────────────────────
 
 NPPES_URL = "https://npiregistry.cms.hhs.gov/api/"
 ICD10_URL = "https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search"
@@ -10,8 +23,17 @@ CPT_URL   = "https://clinicaltables.nlm.nih.gov/api/hcpcs/v3/search"
 
 TIMEOUT = aiohttp.ClientTimeout(total=8)
 
+
+# ─────────────────────────────────────────────
+# NPI CHECK
+# ─────────────────────────────────────────────
+
 async def check_npi(session: aiohttp.ClientSession, npi: str,
                     expected_name: str = "") -> dict:
+    """
+    Verify NPI against CMS NPPES registry.
+    Returns status, provider name, name_match, and source.
+    """
     result = {
         "npi": npi,
         "expected_name": expected_name,
@@ -37,6 +59,8 @@ async def check_npi(session: aiohttp.ClientSession, npi: str,
             basic = provider.get("basic", {})
             status = basic.get("status", "").upper()
             result["status"] = status if status else "ACTIVE"
+
+            # Build provider name
             org_name = basic.get("organization_name", "")
             first = basic.get("first_name", "")
             last = basic.get("last_name", "")
@@ -67,7 +91,15 @@ async def check_npi(session: aiohttp.ClientSession, npi: str,
 
     return result
 
-async def check_icd10(session: aiohttp.ClientSession, code: str):
+
+# ─────────────────────────────────────────────
+# ICD-10-CM CHECK
+# ─────────────────────────────────────────────
+
+async def check_icd10(session: aiohttp.ClientSession, code: str) -> dict:
+    """
+    Verify ICD-10-CM code against NLM API.
+    """
     result = {
         "code": code,
         "description": None,
@@ -76,6 +108,7 @@ async def check_icd10(session: aiohttp.ClientSession, code: str):
         "error": None,
     }
     try:
+        # Normalize: add dot if needed (J069 -> J06.9)
         clean = code.strip().upper()
         params = {
             "sf": "code",
@@ -87,10 +120,13 @@ async def check_icd10(session: aiohttp.ClientSession, code: str):
                 result["error"] = f"HTTP {resp.status}"
                 return result
             data = await resp.json()
+            # Response: [total, codes_list, null, descriptions_list]
             if not data or len(data) < 4:
                 return result
             codes_found = data[1] or []
             descs_found = data[3] or []
+
+            # Exact match check (with and without dot)
             code_no_dot = clean.replace(".", "")
             for i, found_code in enumerate(codes_found):
                 found_clean = found_code.strip().upper().replace(".", "")
@@ -111,7 +147,17 @@ async def check_icd10(session: aiohttp.ClientSession, code: str):
 
     return result
 
-async def check_cpt_hcpcs(session: aiohttp.ClientSession, code: str):
+
+# ─────────────────────────────────────────────
+# CPT / HCPCS CHECK
+# ─────────────────────────────────────────────
+
+async def check_cpt_hcpcs(session: aiohttp.ClientSession, code: str) -> dict:
+    """
+    Check CPT/HCPCS code:
+    - Level II codes: check local HCPCS 2026 file first
+    - CPT (5-digit numeric): check NLM HCPCS API
+    """
     result = {
         "code": code,
         "description": None,
@@ -120,6 +166,8 @@ async def check_cpt_hcpcs(session: aiohttp.ClientSession, code: str):
         "error": None,
     }
     clean = code.strip().upper()
+
+    # Level II — check local file first
     if is_level_ii(clean):
         local = hcpcs_lookup(clean)
         if local:
@@ -128,19 +176,23 @@ async def check_cpt_hcpcs(session: aiohttp.ClientSession, code: str):
             result["source"] = "HCPCS_LOCAL_2026"
             return result
         else:
+            # Not in local file — try NLM API
             result["source"] = "NLM_HCPCS_API"
             return await _check_via_nlm(session, clean, result)
 
+    # CPT — always use NLM API (AMA copyright, not in local file)
     if is_cpt(clean):
         result["source"] = "NLM_HCPCS_API"
         return await _check_via_nlm(session, clean, result)
 
+    # Unknown format
     result["error"] = f"Code '{code}' is not a recognised CPT or HCPCS format"
     result["source"] = "FORMAT_CHECK"
     return result
 
 
-async def _check_via_nlm(session: aiohttp.ClientSession, code: str, result: dict):
+async def _check_via_nlm(session: aiohttp.ClientSession, code: str, result: dict) -> dict:
+    """Query NLM HCPCS/CPT search API."""
     try:
         params = {
             "sf": "code",
@@ -176,7 +228,12 @@ async def _check_via_nlm(session: aiohttp.ClientSession, code: str, result: dict
     return result
 
 
+# ─────────────────────────────────────────────
+# EXTRACT ITEMS TO CHECK FROM PARSED TREE
+# ─────────────────────────────────────────────
+
 def _extract_npis(tree: dict, transaction_type: str) -> list[dict]:
+    """Walk tree and collect all NPI values with context."""
     npis = []
 
     def add(npi, name, loop, segment, element):
@@ -205,6 +262,7 @@ def _extract_npis(tree: dict, transaction_type: str) -> list[dict]:
 
 
 def _extract_icd10_codes(tree: dict, transaction_type: str) -> list[dict]:
+    """Collect all diagnosis codes from 837 claims."""
     codes = []
     if transaction_type not in ("837P", "837I"):
         return codes
@@ -226,6 +284,7 @@ def _extract_icd10_codes(tree: dict, transaction_type: str) -> list[dict]:
 
 
 def _extract_cpt_hcpcs_codes(tree: dict, transaction_type: str) -> list[dict]:
+    """Collect all procedure codes from service lines."""
     codes = []
 
     def add(code, loop, segment):
@@ -261,7 +320,16 @@ def _extract_cpt_hcpcs_codes(tree: dict, transaction_type: str) -> list[dict]:
             unique.append(item)
     return unique
 
+
+# ─────────────────────────────────────────────
+# MAIN LIVE VALIDATE
+# ─────────────────────────────────────────────
+
 async def validate_live_async(parsed: dict) -> dict:
+    """
+    Run all live API checks asynchronously.
+    Returns live_checks dict and any additional errors/warnings.
+    """
     transaction_type = parsed.get("transaction_info", {}).get("type", "")
     tree = parsed.get("tree", {})
 
@@ -387,6 +455,7 @@ async def validate_live_async(parsed: dict) -> dict:
 
 
 def validate_live(parsed: dict) -> dict:
+    """Sync wrapper for validate_live_async."""
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():

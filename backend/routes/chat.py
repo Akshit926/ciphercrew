@@ -8,7 +8,7 @@ from groq import Groq
 from dotenv import load_dotenv
 router = APIRouter()
 
-
+# ── Groq Setup ────────────────────────────────────────────────────────────────
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
@@ -31,18 +31,18 @@ Your behavior:
 Tone: Professional but clear and short. No jargon without explanation. Think "expert billing consultant".
 """
 
-
+# ── Models ────────────────────────────────────────────────────────────────────
 class ChatMessage(BaseModel):
-    role: str          
+    role: str           # "user" or "model" (frontend uses "model", Groq uses "assistant")
     content: str
 
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []
-    parsed_context: Optional[dict] = None   
+    parsed_context: Optional[dict] = None   # full parse result for context
 
 
-
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def _build_context_block(parsed_context: Optional[dict]) -> str:
     """Serialize parsed context into a compact string for the LLM."""
     if not parsed_context:
@@ -53,7 +53,7 @@ def _build_context_block(parsed_context: Optional[dict]) -> str:
     errors = parsed_context.get("validation_errors", [])
     warnings = parsed_context.get("validation_warnings", [])
 
-    
+    # Keep context compact — truncate tree if huge
     tree_str = json.dumps(tree, indent=None)
     if len(tree_str) > 12000:
         tree_str = tree_str[:12000] + "... [truncated]"
@@ -76,6 +76,8 @@ Segment Count    : {parsed_context.get('raw_segment_count', 'N/A')}
 """
     return context
 
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 @router.post("/chat")
 def chat(body: ChatRequest):
     """
@@ -90,40 +92,45 @@ def chat(body: ChatRequest):
         )
 
     try:
-        
+        # 1. Initialize messages with the System Prompt
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
 
-        
+        # 2. Append conversation history
         for msg in body.history:
-            
+            # Map frontend "model" role to Groq's expected "assistant" role
             role = "assistant" if msg.role == "model" else msg.role
             messages.append({
                 "role": role,
                 "content": msg.content
             })
 
-        
+        # 3. Format the current user message with context
         user_message = body.message
         if body.parsed_context and not body.history:
-            
+            # First message — inject full context
             context_block = _build_context_block(body.parsed_context)
             user_message = f"{context_block}\n\n=== USER QUESTION ===\n{body.message}"
         elif body.parsed_context and body.history:
+            # Ongoing conversation — inject compact context reminder
             tx_type = body.parsed_context.get("transaction_info", {}).get("type", "")
             error_count = len(body.parsed_context.get("validation_errors", []))
             user_message = f"[File: {tx_type}, {error_count} errors]\n{body.message}"
 
+        # 4. Add the final user message to the array
         messages.append({"role": "user", "content": user_message})
 
+        # 5. Call Groq API
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile", 
-            temperature=0.2,        
+            model="llama-3.3-70b-versatile", # You can change this to 'mixtral-8x7b-32768' or 'gemma-7b-it'
+            temperature=0.2,         # Low temperature for analytical/factual responses
         )
 
         reply = chat_completion.choices[0].message.content
+
+        # Return the response mapped back to the frontend's expected "model" role
         return JSONResponse(content={"reply": reply, "role": "model"})
 
     except Exception as e:

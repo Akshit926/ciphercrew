@@ -1,7 +1,16 @@
-
+"""
+ClaimCraft Static Validator
+All rule-based HIPAA 5010 checks — runs instantly, zero API calls.
+Covers: 837P, 837I, 835, 834
+"""
 
 from datetime import datetime
 from typing import Optional
+
+
+# ─────────────────────────────────────────────
+# VALID CODE SETS
+# ─────────────────────────────────────────────
 
 VALID_POS_CODES = {
     "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
@@ -18,10 +27,10 @@ VALID_NM108_QUALIFIERS = {
 }
 
 VALID_HI_QUALIFIERS = {
-    "ABK", "ABF", "BK", "BF",  
-    "APR", "APQ",                
-    "BBR", "BBQ",               
-    "TC", "GH",               
+    "ABK", "ABF", "BK", "BF",   # ICD-10 principal/other diagnosis
+    "APR", "APQ",                # ICD-10 procedure
+    "BBR", "BBQ",                # ICD-9 (legacy)
+    "TC", "GH",                  # condition codes
 }
 
 VALID_SV1_QUALIFIERS = {"HC", "WK", "ZZ", "NU"}
@@ -57,6 +66,11 @@ DATE_FORMAT = "%Y%m%d"
 MONETARY_REGEX = r"^\d+(\.\d{1,2})?$"
 NPI_LENGTH = 10
 
+
+# ─────────────────────────────────────────────
+# ERROR BUILDER
+# ─────────────────────────────────────────────
+
 def _error(
     rule_id: str,
     loop: str,
@@ -87,7 +101,12 @@ def _warn(rule_id, loop, segment, element, value_found, message, suggested_fix=N
                   suggested_fix=suggested_fix, severity="WARNING")
 
 
+# ─────────────────────────────────────────────
+# SHARED VALIDATORS
+# ─────────────────────────────────────────────
+
 def _validate_npi(npi: str, loop: str, segment: str, element: str) -> Optional[dict]:
+    """Luhn algorithm check on NPI."""
     if not npi:
         return _error("NPI-001", loop, segment, element, npi,
                       f"{element} is empty. NPI is required and must be a 10-digit number.")
@@ -105,6 +124,7 @@ def _validate_npi(npi: str, loop: str, segment: str, element: str) -> Optional[d
 
 
 def _luhn_check(number: str) -> bool:
+    """Standard Luhn algorithm."""
     digits = [int(d) for d in number]
     digits.reverse()
     total = 0
@@ -119,6 +139,7 @@ def _luhn_check(number: str) -> bool:
 
 def _validate_date(date_str: str, loop: str, segment: str, element: str,
                    label: str = "Date") -> Optional[dict]:
+    """Validate CCYYMMDD date format."""
     if not date_str:
         return _error("DATE-001", loop, segment, element, date_str,
                       f"{label} is empty. Date must be in CCYYMMDD format.")
@@ -135,6 +156,7 @@ def _validate_date(date_str: str, loop: str, segment: str, element: str,
 
 def _validate_monetary(amount: str, loop: str, segment: str, element: str,
                        label: str = "Amount") -> Optional[dict]:
+    """Validate monetary amount format."""
     if not amount:
         return _error("AMT-001", loop, segment, element, amount,
                       f"{label} is empty. A monetary amount is required.")
@@ -148,7 +170,7 @@ def _validate_monetary(amount: str, loop: str, segment: str, element: str,
 def _validate_zip(zip_code: str, loop: str, segment: str, element: str) -> Optional[dict]:
     import re
     if not zip_code:
-        return None 
+        return None  # ZIP not always required
     if not re.match(ZIP_REGEX, zip_code.strip()):
         return _error("ZIP-001", loop, segment, element, zip_code,
                       f"ZIP code '{zip_code}' is not valid. Expected 5-digit (e.g., 41101) or ZIP+4 format.")
@@ -156,6 +178,10 @@ def _validate_zip(zip_code: str, loop: str, segment: str, element: str) -> Optio
 
 
 def _validate_icd10_format(code: str, loop: str, segment: str, element: str) -> Optional[dict]:
+    """
+    Basic ICD-10-CM format check.
+    Format: Letter + 2 digits + optional dot + 1-4 alphanumeric chars
+    """
     import re
     if not code:
         return _error("ICD10-001", loop, segment, element, code,
@@ -168,6 +194,11 @@ def _validate_icd10_format(code: str, loop: str, segment: str, element: str) -> 
                       f"Expected format: letter + 2 digits + optional alphanumeric (e.g., J06.9, I10).")
     return None
 
+
+# ─────────────────────────────────────────────
+# 837P / 837I VALIDATORS
+# ─────────────────────────────────────────────
+
 def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
     errors = []
     warnings = []
@@ -179,6 +210,8 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
     def w(warn):
         if warn:
             warnings.append(warn)
+
+    # --- ENVELOPE checks ---
     envelope = tree.get("envelope", {})
 
     if "ISA" not in envelope:
@@ -192,6 +225,8 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
     if "ST" not in envelope:
         e(_error("ENV-003", "Envelope", "ST", "ST", "",
                  "ST segment is missing. The ST transaction set header is mandatory."))
+
+    # --- SUBMITTER checks ---
     submitter = tree.get("submitter")
     if not submitter:
         e(_error("SUB-001", "Loop 1000A", "NM1", "NM101", "",
@@ -205,11 +240,14 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
             e(_error("SUB-003", "Loop 1000A", "NM1", "NM108", nm108,
                      f"Submitter ID qualifier (NM108) '{nm108}' is not valid. "
                      f"Expected qualifier such as '46' (Electronic Transmitter ID)."))
+
+    # --- RECEIVER checks ---
     receiver = tree.get("receiver")
     if not receiver:
         e(_error("RCV-001", "Loop 1000B", "NM1", "NM101", "",
                  "Receiver NM1*40 segment is missing. The receiver identification loop is mandatory."))
 
+    # --- BILLING PROVIDER LOOPS ---
     loops = tree.get("loops", [])
     if not loops:
         e(_error("BP-001", "Loop 2000A", "HL", "HL03", "",
@@ -219,6 +257,7 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
     for loop_idx, bp_loop in enumerate(loops):
         loop_label = f"Loop 2000A (HL {bp_loop.get('hl_id', loop_idx+1)})"
 
+        # Billing provider NM1
         provider = bp_loop.get("provider")
         if not provider:
             e(_error("BP-002", loop_label, "NM1", "NM101", "",
@@ -238,6 +277,7 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
             if err:
                 errors.append(err)
 
+        # Subscriber loops
         sub_loops = bp_loop.get("subscriber_loops", [])
         if not sub_loops:
             e(_error("SB-001", loop_label, "HL", "HL03", "",
@@ -258,9 +298,12 @@ def validate_837(tree: dict, transaction_type: str) -> tuple[list, list]:
                 if not subscriber.get("id"):
                     e(_error("SB-004", sub_label, "NM1", "NM109", "",
                              "Subscriber member ID (NM109) is empty. Member ID is required."))
+
+            # Validate claims
             for claim in sub_loop.get("claims", []):
                 _validate_claim(claim, sub_label, transaction_type, errors, warnings)
 
+            # Patient loops
             for pat_loop in sub_loop.get("patient_loops", []):
                 pat_label = f"Loop 2000C (HL {pat_loop.get('hl_id', '?')})"
                 for claim in pat_loop.get("claims", []):
@@ -277,14 +320,18 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
     claim_id = claim.get("claim_id", "?")
     clm_label = f"{loop_label} → Loop 2300 (Claim {claim_id})"
 
+    # CLM01 — Claim ID
     if not claim.get("claim_id"):
         e(_error("CLM-001", clm_label, "CLM", "CLM01", "",
                  "Claim ID (CLM01) is empty. A unique claim identifier is required."))
 
+    # CLM02 — Total charge
     err = _validate_monetary(claim.get("total_charge", ""), clm_label, "CLM", "CLM02",
                              "Total charge amount")
     if err:
         errors.append(err)
+
+    # CLM05-1 — Place of Service
     facility_type = claim.get("facility_type", "")
     if not facility_type:
         e(_error("CLM-002", clm_label, "CLM", "CLM05-1", "",
@@ -294,6 +341,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                  f"Place of Service code '{facility_type}' is not a valid CMS POS code. "
                  f"Common values: 11 (Office), 21 (Inpatient Hospital), 22 (Outpatient Hospital)."))
 
+    # CLM05-2 — Care setting
     care_setting = claim.get("care_setting", "")
     if not care_setting:
         e(_error("CLM-004", clm_label, "CLM", "CLM05-2", "",
@@ -302,6 +350,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
         e(_error("CLM-005", clm_label, "CLM", "CLM05-2", care_setting,
                  f"Care setting code '{care_setting}' is not valid. Expected A-G."))
 
+    # CLM05-3 — Claim frequency
     claim_freq = claim.get("claim_frequency", "")
     if not claim_freq:
         e(_error("CLM-006", clm_label, "CLM", "CLM05-3", "",
@@ -310,6 +359,8 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
         e(_error("CLM-007", clm_label, "CLM", "CLM05-3", claim_freq,
                  f"Claim frequency code '{claim_freq}' is not valid. "
                  f"Expected 1 (Original), 7 (Replacement), 8 (Void)."))
+
+    # Diagnosis codes (HI)
     diag_codes = claim.get("diagnosis_codes", [])
     if not diag_codes:
         e(_error("HI-001", clm_label, "HI", "HI01", "",
@@ -330,6 +381,8 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
             err = _validate_icd10_format(code, clm_label, "HI", elem)
             if err:
                 errors.append(err)
+
+    # Service lines
     service_lines = claim.get("service_lines", [])
     if not service_lines:
         e(_error("SV-001", clm_label, "SV1", "SV1", "",
@@ -339,6 +392,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
         for sl in service_lines:
             sl_label = f"{clm_label} → Loop 2400 (Line {sl.get('line_number', '?')})"
 
+            # Procedure code
             proc = sl.get("procedure", "")
             qual = sl.get("procedure_qualifier", "")
             if not proc:
@@ -349,11 +403,13 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                     e(_error("SV-003", sl_label, "SV1", "SV101", qual,
                              f"Service line qualifier '{qual}' is not valid. "
                              f"Expected 'HC' (HCPCS/CPT) or 'WK' (Work Comp)."))
+                # format: CPT = 5 digits, HCPCS Level II = letter+4 alphanumeric
                 if not _is_valid_cpt_hcpcs_format(proc):
                     e(_error("SV-004", sl_label, "SV1", "SV101", proc,
                              f"Procedure code '{proc}' does not match CPT (5-digit numeric) "
                              f"or HCPCS Level II (letter + 4 alphanumeric) format."))
 
+            # Line charge
             charge = sl.get("charge", "")
             err = _validate_monetary(charge, sl_label, "SV1", "SV102", "Line charge amount")
             if err:
@@ -363,6 +419,8 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                     line_charge_sum += float(charge)
                 except (ValueError, TypeError):
                     pass
+
+            # Unit count
             unit_count = sl.get("unit_count", "")
             if not unit_count:
                 e(_error("SV-005", sl_label, "SV1", "SV104", "",
@@ -375,6 +433,8 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                 except (ValueError, TypeError):
                     e(_error("SV-007", sl_label, "SV1", "SV104", unit_count,
                              f"Service unit count '{unit_count}' is not a valid number."))
+
+            # Service date
             dates = sl.get("dates", [])
             if not dates:
                 e(_error("DTP-001", sl_label, "DTP", "DTP03", "",
@@ -387,6 +447,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                         if err:
                             errors.append(err)
 
+        # CLM02 vs sum of service lines
         try:
             total = float(claim.get("total_charge", "0"))
             if abs(total - line_charge_sum) > 0.01 and line_charge_sum > 0:
@@ -398,6 +459,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
         except (ValueError, TypeError):
             pass
 
+    # Rendering provider NPI
     rendering = claim.get("rendering_provider")
     if rendering:
         rp_label = f"{clm_label} → Loop 2310B"
@@ -411,6 +473,7 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
         if err:
             errors.append(err)
 
+    # Claim dates
     dates = claim.get("dates", [])
     has_stmt_date = any(d.get("qualifier") == "431" for d in dates)
     if not has_stmt_date:
@@ -418,10 +481,14 @@ def _validate_claim(claim: dict, loop_label: str, transaction_type: str,
                 "Statement date (DTP*431) is missing on claim. "
                 "While not always mandatory, it is strongly recommended."))
 
+    # Patient DOB vs claim date cross-check
     _cross_check_dates(claim, clm_label, warnings)
 
 
 def _cross_check_dates(claim: dict, label: str, warnings: list):
+    """Patient DOB should be before claim service date."""
+    # We'd need subscriber demographic for full check
+    # Just check claim dates are sensible (not future, not before 2000)
     for dtp in claim.get("dates", []):
         date_str = dtp.get("date", "")
         if len(date_str) == 8 and date_str.isdigit():
@@ -441,7 +508,8 @@ def _cross_check_dates(claim: dict, label: str, warnings: list):
                 pass
 
 
-def _is_valid_cpt_hcpcs_format(code: str):
+def _is_valid_cpt_hcpcs_format(code: str) -> bool:
+    """CPT: 5 numeric. HCPCS Level II: letter + 4 alphanumeric."""
     if not code:
         return False
     code = code.strip().upper()
@@ -452,6 +520,11 @@ def _is_valid_cpt_hcpcs_format(code: str):
     if code[0].isalpha() and code[1:].isalnum():
         return True  # HCPCS Level II
     return False
+
+
+# ─────────────────────────────────────────────
+# 835 VALIDATORS
+# ─────────────────────────────────────────────
 
 def validate_835(tree: dict) -> tuple[list, list]:
     errors = []
@@ -464,10 +537,14 @@ def validate_835(tree: dict) -> tuple[list, list]:
         if warn: warnings.append(warn)
 
     envelope = tree.get("envelope", {})
+
+    # Mandatory envelope segments
     for seg in ("ISA", "GS", "ST", "BPR"):
         if seg not in envelope:
             e(_error(f"ENV-{seg}", "Envelope", seg, seg, "",
                      f"{seg} segment is missing. Required in 835 envelope."))
+
+    # BPR02 — payment amount
     bpr = envelope.get("BPR", {})
     if bpr:
         bpr_elems = bpr.get("raw_elements", [])
@@ -477,14 +554,17 @@ def validate_835(tree: dict) -> tuple[list, list]:
         if err:
             errors.append(err)
 
+    # Payer
     if not tree.get("payer"):
         e(_error("PAY-001", "Loop 1000A", "N1", "N101", "",
                  "Payer N1*PR segment is missing. Payer identification is required in 835."))
 
+    # Payee
     if not tree.get("payee"):
         e(_error("PYE-001", "Loop 1000B", "N1", "N101", "",
                  "Payee N1*PE segment is missing. Payee identification is required in 835."))
 
+    # Claim loops
     claim_loops = tree.get("claim_loops", [])
     if not claim_loops:
         w(_warn("CLP-000", "Loop 2100", "CLP", "CLP", "",
@@ -502,10 +582,12 @@ def validate_835(tree: dict) -> tuple[list, list]:
     for i, clp in enumerate(claim_loops):
         clp_label = f"Loop 2100 (Claim {clp.get('claim_id', i+1)})"
 
+        # CLP01 — claim ID
         if not clp.get("claim_id"):
             e(_error("CLP-001", clp_label, "CLP", "CLP01", "",
                      "Claim ID (CLP01) is empty. Claim submission trace number is required."))
 
+        # CLP02 — claim status code
         status = clp.get("claim_status_code", "")
         valid_statuses = {"1", "2", "3", "4", "5", "19", "20", "21", "22"}
         if status not in valid_statuses:
@@ -513,10 +595,12 @@ def validate_835(tree: dict) -> tuple[list, list]:
                      f"Claim status code '{status}' is not valid. "
                      f"Expected: 1=Paid, 4=Denied, 2=Secondary, 22=Reversal."))
 
+        # CLP03 — billed amount
         err = _validate_monetary(clp.get("billed_amount", ""), clp_label,
                                  "CLP", "CLP03", "Billed amount")
         if err: errors.append(err)
 
+        # CLP04 — paid amount
         err = _validate_monetary(clp.get("paid_amount", ""), clp_label,
                                  "CLP", "CLP04", "Paid amount")
         if err: errors.append(err)
@@ -525,6 +609,8 @@ def validate_835(tree: dict) -> tuple[list, list]:
             total_paid_clp += float(clp.get("paid_amount", "0"))
         except (ValueError, TypeError):
             pass
+
+        # Paid > Billed check
         try:
             billed = float(clp.get("billed_amount", "0"))
             paid = float(clp.get("paid_amount", "0"))
@@ -536,6 +622,7 @@ def validate_835(tree: dict) -> tuple[list, list]:
         except (ValueError, TypeError):
             pass
 
+        # CAS adjustments
         for adj in clp.get("adjustments", []):
             group_code = adj.get("group_code", "")
             if group_code not in VALID_CAS_GROUP_CODES:
@@ -547,6 +634,7 @@ def validate_835(tree: dict) -> tuple[list, list]:
                 err = _validate_monetary(amt, clp_label, "CAS", "CAS03", "Adjustment amount")
                 if err: errors.append(err)
 
+        # SVC service lines
         for j, svc in enumerate(clp.get("service_lines", [])):
             svc_label = f"{clp_label} → SVC line {j+1}"
             proc = svc.get("procedure_code", "")
@@ -557,6 +645,7 @@ def validate_835(tree: dict) -> tuple[list, list]:
                                      svc_label, "SVC", "SVC02", "SVC billed amount")
             if err: errors.append(err)
 
+    # BPR02 vs sum of CLP04 reconciliation
     if total_paid_bpr > 0 and abs(total_paid_bpr - total_paid_clp) > 0.01:
         w(_warn("BPR-001", "Envelope", "BPR", "BPR02",
                 str(total_paid_bpr),
@@ -566,6 +655,11 @@ def validate_835(tree: dict) -> tuple[list, list]:
                 suggested_fix=f"{total_paid_clp:.2f}"))
 
     return errors, warnings
+
+
+# ─────────────────────────────────────────────
+# 834 VALIDATORS
+# ─────────────────────────────────────────────
 
 def validate_834(tree: dict) -> tuple[list, list]:
     errors = []
@@ -579,11 +673,13 @@ def validate_834(tree: dict) -> tuple[list, list]:
 
     envelope = tree.get("envelope", {})
 
+    # Mandatory envelope segments
     for seg in ("ISA", "GS", "ST", "BGN"):
         if seg not in envelope:
             e(_error(f"ENV-{seg}", "Envelope", seg, seg, "",
                      f"{seg} segment is missing. Required in 834 envelope."))
 
+    # BGN01 — transaction set purpose
     bgn = envelope.get("BGN", {})
     if bgn:
         bgn_elems = bgn.get("raw_elements", [])
@@ -594,14 +690,17 @@ def validate_834(tree: dict) -> tuple[list, list]:
                      f"BGN01 transaction purpose code '{purpose}' is not valid. "
                      f"Expected: 00 (Original), 15 (Resubmission), 22 (Information Copy)."))
 
+    # Sponsor
     if not tree.get("sponsor"):
         e(_error("SP-001", "Loop 1000A", "N1", "N101", "",
                  "Sponsor N1*P5 segment is missing. Plan sponsor identification is required."))
 
+    # Payer/Insurer
     if not tree.get("payer"):
         e(_error("INS-PAY-001", "Loop 1000B", "N1", "N101", "",
                  "Insurer N1*IN segment is missing. Insurer identification is required."))
 
+    # Member loops
     member_loops = tree.get("member_loops", [])
     if not member_loops:
         e(_error("MBR-001", "Loop 2000", "INS", "INS", "",
@@ -612,6 +711,8 @@ def validate_834(tree: dict) -> tuple[list, list]:
 
     for i, member in enumerate(member_loops):
         mbr_label = f"Loop 2000 (Member {i+1})"
+
+        # INS03 — maintenance type
         mtype = member.get("maintenance_type_code", "")
         if not mtype:
             e(_error("INS-001", mbr_label, "INS", "INS03", "",
@@ -622,18 +723,21 @@ def validate_834(tree: dict) -> tuple[list, list]:
                      f"Maintenance type code '{mtype}' is not valid. "
                      f"Expected: 001=Change, 021=Addition, 024=Termination, 025=Reinstatement."))
 
+        # INS02 — relationship code
         rel = member.get("relationship_code", "")
         if rel not in VALID_INS_RELATIONSHIP_CODES:
             e(_error("INS-003", mbr_label, "INS", "INS02", rel,
                      f"Individual relationship code (INS02) '{rel}' is not valid. "
                      f"Common values: 18=Self, 01=Spouse, 19=Child."))
 
+        # INS05 — benefit status
         benefit_status = member.get("benefit_status_code", "")
         if benefit_status and benefit_status not in VALID_BENEFIT_STATUS_CODES:
             e(_error("INS-004", mbr_label, "INS", "INS05", benefit_status,
                      f"Benefit status code '{benefit_status}' is not valid. "
                      f"Expected: A=Active, C=COBRA, S=Survivor, T=Terminated."))
 
+        # Member name
         member_name = member.get("member_name")
         if not member_name:
             e(_error("MBR-002", mbr_label, "NM1", "NM101", "",
@@ -647,6 +751,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
                         "Member first name (NM104) is empty for a subscriber (INS01=Y). "
                         "First name is strongly recommended."))
 
+        # Member ID duplicate check
         member_id = member.get("member_id", "")
         if member_id:
             if member_id in seen_ids:
@@ -656,6 +761,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
             else:
                 seen_ids[member_id] = i
 
+        # Demographic
         demographic = member.get("demographic")
         if demographic:
             demo_elems = demographic.get("raw_elements", [])
@@ -664,6 +770,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
             err = _validate_date(dob, mbr_label, "DMG", "DMG02", "Date of birth")
             if err: errors.append(err)
             else:
+                # DOB must be in the past
                 try:
                     dob_dt = datetime.strptime(dob, DATE_FORMAT)
                     if dob_dt >= datetime.now():
@@ -676,6 +783,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
                 e(_error("DMG-002", mbr_label, "DMG", "DMG03", gender,
                          f"Gender code '{gender}' is not valid. Expected M, F, or U (Unknown)."))
 
+        # Date checks
         dates = member.get("dates", [])
         date_map = {d["qualifier"]: d["date"] for d in dates}
 
@@ -693,6 +801,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
                          "Addition record (INS03=021) is missing a coverage effective date (DTP*356 or DTP*348). "
                          "Effective date is required for new enrollments."))
 
+        # Date consistency: effective before termination
         eff = date_map.get("356") or date_map.get("348")
         term = date_map.get("357") or date_map.get("336")
         if eff and term and len(eff) == 8 and len(term) == 8:
@@ -707,6 +816,7 @@ def validate_834(tree: dict) -> tuple[list, list]:
             except ValueError:
                 pass
 
+        # Coverage (HD) checks
         for j, cov in enumerate(member.get("coverages", [])):
             cov_label = f"{mbr_label} → HD coverage {j+1}"
             ins_line = cov.get("insurance_line_code", "")
@@ -722,7 +832,15 @@ def validate_834(tree: dict) -> tuple[list, list]:
     return errors, warnings
 
 
+# ─────────────────────────────────────────────
+# MAIN STATIC VALIDATE
+# ─────────────────────────────────────────────
+
 def validate_static(parsed: dict) -> dict:
+    """
+    Run all static (no-API) HIPAA 5010 validation rules.
+    Returns validation result dict.
+    """
     transaction_type = parsed.get("transaction_info", {}).get("type", "")
     tree = parsed.get("tree", {})
 
@@ -746,6 +864,7 @@ def validate_static(parsed: dict) -> dict:
             "summary": {},
         }
 
+    # Build summary
     summary = _build_summary(errors, warnings)
 
     return {

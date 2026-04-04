@@ -1,13 +1,20 @@
+"""
+837P (Professional) and 837I (Institutional) Claim Parser
+Parses full loop hierarchy per HIPAA 5010 X222A1 / X223A2 spec
+"""
 
-from .core import build_segment_dict
-    
-from .codes import (
+from ..core import (
+    build_segment_dict,
     NM1_ENTITY_NAMES,
     FACILITY_TYPE_NAMES,
 )
 
 
-def parse_837(segments: list, transaction_type: str):
+def parse_837(segments: list, transaction_type: str) -> dict:
+    """
+    Parse 837P or 837I segments into full loop hierarchy.
+    Returns structured dict with envelope, submitter, receiver, loops.
+    """
     idx = 0
     n = len(segments)
 
@@ -18,6 +25,7 @@ def parse_837(segments: list, transaction_type: str):
     trailer = {}
     warnings = []
 
+    # track segment positions for validation
     seg_index = {seg["id"]: [] for seg in segments}
     for i, seg in enumerate(segments):
         seg_index[seg["id"]].append(i)
@@ -26,6 +34,7 @@ def parse_837(segments: list, transaction_type: str):
         seg = segments[idx]
         sid = seg["id"]
 
+        # --- ENVELOPE ---
         if sid in ("ISA", "GS", "ST", "BPR"):
             if sid == "BPR" and transaction_type in ("837P", "837I"):
                 warnings.append({
@@ -37,19 +46,26 @@ def parse_837(segments: list, transaction_type: str):
                 envelope[sid] = build_segment_dict(seg)
             idx += 1
 
+        # --- SUBMITTER NM1*41 ---
         elif sid == "NM1" and _elem(seg, 0) == "41" and submitter is None:
             submitter = _parse_nm1_entity(seg)
             idx += 1
+            # consume PER (contact)
             while idx < n and segments[idx]["id"] == "PER":
                 submitter["contact"] = build_segment_dict(segments[idx])
                 idx += 1
+
+        # --- RECEIVER NM1*40 ---
         elif sid == "NM1" and _elem(seg, 0) == "40" and receiver is None:
             receiver = _parse_nm1_entity(seg)
             idx += 1
+
+        # --- HL LOOP (billing provider level 20) ---
         elif sid == "HL" and _elem(seg, 2) == "20":
             loop, idx = _parse_billing_provider_loop(segments, idx, transaction_type, warnings)
             loops.append(loop)
 
+        # --- TRAILER ---
         elif sid in ("SE", "GE", "IEA"):
             trailer[sid] = build_segment_dict(seg)
             idx += 1
@@ -69,6 +85,7 @@ def parse_837(segments: list, transaction_type: str):
 
 
 def _parse_billing_provider_loop(segments, idx, transaction_type, warnings):
+    """Parse HL*x**20*1 loop and all children."""
     seg = segments[idx]
     loop = {
         "hl_id": _elem(seg, 0),
@@ -94,13 +111,14 @@ def _parse_billing_provider_loop(segments, idx, transaction_type, warnings):
                 sub_loop, idx = _parse_subscriber_loop(segments, idx, transaction_type, warnings)
                 loop["subscriber_loops"].append(sub_loop)
             elif lvl == "20":
-                break
+                break  # new billing provider
             else:
                 idx += 1
 
         elif sid == "NM1" and _elem(seg, 0) == "85":
             loop["provider"] = _parse_nm1_entity(seg)
             idx += 1
+            # consume N3, N4, REF, PER
             idx = _consume_provider_detail(segments, idx, loop["provider"])
 
         elif sid == "NM1" and _elem(seg, 0) == "87":
@@ -118,6 +136,7 @@ def _parse_billing_provider_loop(segments, idx, transaction_type, warnings):
 
 
 def _parse_subscriber_loop(segments, idx, transaction_type, warnings):
+    """Parse HL*x*x*22*x loop."""
     seg = segments[idx]
     has_child = _elem(seg, 3) == "1"
     loop = {
@@ -177,6 +196,7 @@ def _parse_subscriber_loop(segments, idx, transaction_type, warnings):
 
 
 def _parse_patient_loop(segments, idx, transaction_type, warnings):
+    """Parse HL*x*x*23*0 patient loop."""
     seg = segments[idx]
     loop = {
         "hl_id": _elem(seg, 0),
@@ -221,9 +241,11 @@ def _parse_patient_loop(segments, idx, transaction_type, warnings):
 
 
 def _parse_claim(segments, idx, transaction_type, warnings):
+    """Parse CLM + all sub-segments through next CLM or HL."""
     seg = segments[idx]
     elems = seg["raw_elements"]
 
+    # CLM05 composite: facility_type:care_setting:claim_frequency
     clm05 = elems[4] if len(elems) > 4 else []
     if isinstance(clm05, list):
         facility_type = clm05[0] if len(clm05) > 0 else ""
@@ -286,6 +308,7 @@ def _parse_claim(segments, idx, transaction_type, warnings):
                 claim["supervising_provider"] = entity
 
         elif sid == "LX":
+            # service line
             if transaction_type == "837I":
                 svc_line, idx = _parse_sv2_line(segments, idx)
             else:
@@ -311,10 +334,11 @@ def _parse_claim(segments, idx, transaction_type, warnings):
         else:
             idx += 1
 
+    # validate charge vs service line sum
     try:
         total = float(claim["total_charge"])
         line_sum = sum(float(sl["charge"]) * float(sl.get("unit_count", 1)) for sl in claim["service_lines"])
-
+        # units may already be multiplied in charge so compare directly
         line_charge_sum = sum(float(sl["charge"]) for sl in claim["service_lines"])
         if abs(total - line_charge_sum) > 0.01 and line_charge_sum > 0:
             warnings.append({
@@ -332,6 +356,7 @@ def _parse_claim(segments, idx, transaction_type, warnings):
 
 
 def _parse_sv1_line(segments, idx):
+    """Parse LX + SV1 service line (professional)."""
     lx_seg = segments[idx]
     line_number = _elem(lx_seg, 0)
     idx += 1
@@ -382,6 +407,7 @@ def _parse_sv1_line(segments, idx):
 
 
 def _parse_sv2_line(segments, idx):
+    """Parse LX + SV2 service line (institutional)."""
     lx_seg = segments[idx]
     line_number = _elem(lx_seg, 0)
     idx += 1
@@ -433,7 +459,8 @@ def _parse_sv2_line(segments, idx):
     return line, idx
 
 
-def _parse_nm1_entity(seg):
+def _parse_nm1_entity(seg) -> dict:
+    """Parse NM1 segment into entity dict."""
     elems = seg["raw_elements"]
     entity_code = elems[0] if elems else ""
     return {
@@ -453,6 +480,7 @@ def _parse_nm1_entity(seg):
 
 
 def _consume_provider_detail(segments, idx, entity):
+    """Consume N3, N4, REF, PER after NM1 for a provider."""
     n = len(segments)
     while idx < n:
         seg = segments[idx]
@@ -475,6 +503,7 @@ def _consume_provider_detail(segments, idx, entity):
 
 
 def _consume_person_detail(segments, idx, entity):
+    """Consume N3, N4, DMG after NM1 for a person."""
     n = len(segments)
     while idx < n:
         seg = segments[idx]
@@ -496,7 +525,8 @@ def _consume_person_detail(segments, idx, entity):
     return idx
 
 
-def _parse_dtp(seg):
+def _parse_dtp(seg) -> dict:
+    """Parse DTP segment."""
     elems = seg["raw_elements"]
     return {
         "qualifier": elems[0] if elems else "",
@@ -506,7 +536,8 @@ def _parse_dtp(seg):
     }
 
 
-def _parse_hi(seg):
+def _parse_hi(seg) -> list:
+    """Parse HI segment into list of diagnosis codes."""
     codes = []
     for val in seg["raw_elements"]:
         if isinstance(val, list) and len(val) >= 2:
@@ -516,7 +547,8 @@ def _parse_hi(seg):
     return codes
 
 
-def _elem(seg, pos):
+def _elem(seg, pos) -> str:
+    """Safe element extractor."""
     elems = seg.get("raw_elements", [])
     if pos < len(elems):
         val = elems[pos]

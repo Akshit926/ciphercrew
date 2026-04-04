@@ -5,11 +5,13 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-
+# ── Models ────────────────────────────────────────────────────────────────────
 class ReconcileRequest(BaseModel):
     parsed_837: dict
     parsed_835: dict
 
+
+# ── Constants & Helpers ───────────────────────────────────────────────────────
 CARC_DESCRIPTIONS = {
     "1": "Deductible amount",
     "2": "Coinsurance amount",
@@ -67,10 +69,13 @@ def _clp_status(code: str) -> str:
 
 def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
     """Core reconciliation logic. Matches CLM01 (837) against CLP01 (835)."""
+    # ── extract all claims from 837 ──
     claims_837 = []
     tree_837 = parsed_837.get("tree", {})
     for hl_loop in tree_837.get("loops", []):
         _extract_claims_from_loop(hl_loop, claims_837)
+
+    # ── extract all CLP entries from 835 ──
     clp_map = {}
     tree_835 = parsed_835.get("tree", {})
     for claim in tree_835.get("claim_loops", []):
@@ -78,6 +83,7 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
         if claim_id:
             clp_map[claim_id] = claim
 
+    # ── match ──
     matched = []
     unmatched_837 = []
     unmatched_835 = list(clp_map.keys())
@@ -92,7 +98,7 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
             patient_resp = _to_float(clp.get("patient_responsibility"))
             delta = round(billed - paid, 2) if billed is not None and paid is not None else None
 
-
+            # collect adjustments with descriptions
             adjustments = []
             for cas in clp.get("adjustments", []):
                 group_code = cas.get("group_code", "")
@@ -104,6 +110,8 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
                         "reason_description": _carc_desc(code),
                         "amount": adj.get("amount", ""),
                     })
+
+            # service line reconciliation
             services = []
             for svc in clp.get("service_lines", []):
                 svc_billed = _to_float(svc.get("billed_amount") or svc.get("billed"))
@@ -152,6 +160,8 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
                 "status": "NO_REMITTANCE",
                 "message": "Claim submitted in 837 but no matching CLP found in 835."
             })
+
+    # summary
     total_billed = sum(r["billed"] or 0 for r in matched)
     total_paid = sum(r["paid"] or 0 for r in matched)
     total_delta = round(total_billed - total_paid, 2)
@@ -178,6 +188,8 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
         ],
     }
 
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 @router.post("/reconcile")
 def reconcile_claims(body: ReconcileRequest):
     """
