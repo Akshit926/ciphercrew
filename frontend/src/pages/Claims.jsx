@@ -29,7 +29,7 @@ const Claims = () => {
 
   if (!parsedData) return null;
 
-  const rawEdi = parsedData.parsed?.raw_edi || parsedData.raw_edi || '';
+  const rawEdi = parsedData.parsed?.raw || parsedData.raw || parsedData.parsed?.raw_edi || parsedData.raw_edi || '';
   const rawLines = rawEdi ? rawEdi.split('~') : [];
 
   const handleFullValidate = async () => {
