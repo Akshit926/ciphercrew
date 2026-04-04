@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-sans antialiased text-slate-800 bg-[#f8fafc];
+    /* Premium animated ambient background */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(210,100%,96%,1) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(220,100%,94%,1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(240,100%,96%,1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(200,100%,94%,1) 0px, transparent 50%);
+    background-size: 200% 200%;
+    animation: gradientMove 15s ease infinite;
+    min-height: 100vh;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline tracking-tight;
+  }
+  code, pre {
+    @apply font-code;
+  }
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgb(0,0,0,0.06)] rounded-2xl;
+  }
+  
+  .glass-button {
+    @apply relative overflow-hidden bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/40 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 font-semibold px-4 py-2 rounded-xl;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-200/50 rounded-full hover:bg-slate-300/80 transition-colors;
+  }
+}
