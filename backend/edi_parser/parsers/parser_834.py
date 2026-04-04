@@ -89,8 +89,21 @@ def parse_834(segments: list) -> dict:
     terminations = sum(1 for m in member_loops if m["maintenance_type_code"] == "024")
     reinstatements = sum(1 for m in member_loops if m["maintenance_type_code"] == "025")
 
+    # Group structural data into a 'tree' object for the frontend SemanticClaimViewer
+    # Group structural data into a 'tree' object for the frontend SemanticClaimViewer
+    tree_data = {
+        "transaction_type": "834",
+        "envelope": envelope,
+        "sponsor": sponsor,
+        "payer": payer,
+        "tpa": tpa,
+        "loops": member_loops, # <--- Changed from 'member_loops' to 'loops'
+        "trailer": trailer,
+    }
+
     return {
         "transaction_type": "834",
+        "tree": tree_data,  # <--- Added tree key here
         "envelope": envelope,
         "sponsor": sponsor,
         "payer": payer,

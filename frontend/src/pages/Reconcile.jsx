@@ -48,7 +48,8 @@ const Reconcile = () => {
         parsed_837: data837,
         parsed_835: data835
       });
-      setResults(res.data.differences || []);
+      // FIX 1: Access the correct key from the backend response
+      setResults(res.data.matched_claims || []);
     } catch (err) {
       setError('Reconciliation failed. Check your data formats.');
       console.error(err);
@@ -161,7 +162,12 @@ const Reconcile = () => {
                        <td className="px-6 py-4 font-medium">${parseFloat(r.billed || 0).toFixed(2)}</td>
                        <td className="px-6 py-4 font-medium">${parseFloat(r.paid || 0).toFixed(2)}</td>
                        <td className="px-6 py-4 font-medium text-danger">${parseFloat(r.delta || 0).toFixed(2)}</td>
-                       <td className="px-6 py-4 text-sm text-slate-600">{r.carc || 'None'}</td>
+                       <td className="px-6 py-4 text-sm text-slate-600">
+                         {/* FIX 2: Map over the backend's adjustments array properly */}
+                         {r.adjustments && r.adjustments.length > 0 
+                           ? r.adjustments.map(adj => adj.reason_code).join(', ') 
+                           : 'None'}
+                       </td>
                        <td className="px-6 py-4">
                          {parseFloat(r.delta || 0) === 0 ? (
                             <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 bg-success/10 text-success rounded-md">Matched</span>

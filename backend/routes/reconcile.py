@@ -10,7 +10,6 @@ class ReconcileRequest(BaseModel):
     parsed_837: dict
     parsed_835: dict
 
-
 # ── Constants & Helpers ───────────────────────────────────────────────────────
 CARC_DESCRIPTIONS = {
     "1": "Deductible amount",
@@ -41,10 +40,17 @@ def _carc_desc(code: str) -> str:
 
 def _extract_claims_from_loop(loop: dict, out: list):
     """Recursively extract all claims from HL loop tree."""
+    # 1. Extract claims directly at this loop level
     for claim in loop.get("claims", []):
         out.append(claim)
+        
+    # 2. Traverse into subscriber loops
     for sub in loop.get("subscriber_loops", []):
         _extract_claims_from_loop(sub, out)
+        
+    # 3. Traverse into patient loops
+    for pat in loop.get("patient_loops", []):
+        _extract_claims_from_loop(pat, out)
 
 def _to_float(val) -> Optional[float]:
     try:
@@ -67,18 +73,32 @@ def _clp_status(code: str) -> str:
     }.get(code, f"Unknown ({code})")
 
 
-def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
+def _reconcile(payload_837: dict, payload_835: dict) -> dict:
     """Core reconciliation logic. Matches CLM01 (837) against CLP01 (835)."""
+    
+    # 1. Drill down into the 'parsed' key because frontend sends the full /parse response
+    parsed_837 = payload_837.get("parsed", payload_837)
+    parsed_835 = payload_835.get("parsed", payload_835)
+
+    # 2. Safely get the tree (and un-nest it if it's double-nested from earlier backend updates)
+    tree_837 = parsed_837.get("tree", {})
+    if isinstance(tree_837, dict) and "tree" in tree_837:
+        tree_837 = tree_837["tree"]
+
+    tree_835 = parsed_835.get("tree", {})
+    if isinstance(tree_835, dict) and "tree" in tree_835:
+        tree_835 = tree_835["tree"]
+
     # ── extract all claims from 837 ──
     claims_837 = []
-    tree_837 = parsed_837.get("tree", {})
     for hl_loop in tree_837.get("loops", []):
         _extract_claims_from_loop(hl_loop, claims_837)
 
     # ── extract all CLP entries from 835 ──
     clp_map = {}
-    tree_835 = parsed_835.get("tree", {})
-    for claim in tree_835.get("claim_loops", []):
+    # Support both 'claim_loops' and 'loops' depending on your backend configuration
+    loops_835 = tree_835.get("claim_loops", []) or tree_835.get("loops", [])
+    for claim in loops_835:
         claim_id = claim.get("claim_id", "").strip()
         if claim_id:
             clp_map[claim_id] = claim
@@ -187,7 +207,6 @@ def _reconcile(parsed_837: dict, parsed_835: dict) -> dict:
             for cid in unmatched_835
         ],
     }
-
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 @router.post("/reconcile")

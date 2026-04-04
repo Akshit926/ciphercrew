@@ -120,8 +120,21 @@ def parse_835(segments: list) -> dict:
         else:
             idx += 1
 
+    # Group structural data into a 'tree' object for the frontend SemanticClaimViewer
+    # Group structural data into a 'tree' object for the frontend SemanticClaimViewer
+    tree_data = {
+        "transaction_type": "835",
+        "envelope": envelope,
+        "payer": payer,
+        "payee": payee,
+        "loops": claim_loops,  # <--- Changed from 'claim_loops' to 'loops'
+        "provider_adjustments": provider_adjustments,
+        "trailer": trailer,
+    }
+
     return {
         "transaction_type": "835",
+        "tree": tree_data,  
         "envelope": envelope,
         "payer": payer,
         "payee": payee,
