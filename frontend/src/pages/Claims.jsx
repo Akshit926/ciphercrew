@@ -174,7 +174,8 @@ const Claims = () => {
     ]);
 
     try {
-      const res = await axios.post('/chat', {
+      const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const res = await axios.post(`${baseUrl}/chat`, {
         message,
         history: historyForApi,
         parsed_context: {
@@ -196,12 +197,18 @@ const Claims = () => {
         },
       ]);
     } catch (err) {
+      const fallbackMessage =
+        err.response?.data?.reply ||
+        err.response?.data?.detail ||
+        err.message ||
+        'Unable to contact the AI assistant right now.';
+
       setChatHistory((prev) => [
         ...prev,
         {
           id: `model-error-${Date.now()}`,
           role: 'model',
-          content: 'Unable to contact the AI assistant right now.',
+          content: fallbackMessage,
           animate: true,
         },
       ]);
