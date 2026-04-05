@@ -84,6 +84,7 @@ const workflow = [
 const Home = () => {
   const navigate = useNavigate();
   const setParsedData = useEdiStore((state) => state.setParsedData);
+  const setBatchData = useEdiStore((state) => state.setBatchData);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showIntro, setShowIntro] = useState(() => shouldShowWelcome());
@@ -104,6 +105,7 @@ const Home = () => {
         const { data } = response;
 
         if (data.batch) {
+          setBatchData(data.results || []);
           navigate('/batch', { state: { batchData: data.results } });
         } else {
           setParsedData(data);
@@ -115,7 +117,7 @@ const Home = () => {
         setLoading(false);
       }
     },
-    [navigate, setParsedData],
+    [navigate, setBatchData, setParsedData],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ChevronRight, FileStack, UploadCloud, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, FileStack, Trash2, UploadCloud, XCircle } from 'lucide-react';
 import { useEdiStore } from '../store/useEdiStore';
 import { MetricCard, PageHeader, Pill } from '../components/ui';
 
@@ -10,18 +10,49 @@ const Batch = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const setParsedData = useEdiStore((state) => state.setParsedData);
-  const [batchData, setBatchData] = useState(location.state?.batchData || []);
+  const storedBatchData = useEdiStore((state) => state.batchData);
+  const setBatchData = useEdiStore((state) => state.setBatchData);
+  const clearBatchData = useEdiStore((state) => state.clearBatchData);
+  const [batchData, setBatchDataState] = useState(() => storedBatchData.length > 0 ? storedBatchData : (location.state?.batchData || []));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadedName, setUploadedName] = useState('');
 
   useEffect(() => {
-    setBatchData(location.state?.batchData || []);
-  }, [location.state]);
+    if (location.state?.batchData?.length) {
+      setBatchData(location.state.batchData);
+    }
+  }, [location.state, setBatchData]);
+
+  useEffect(() => {
+    if (storedBatchData.length > 0) {
+      setBatchDataState(storedBatchData);
+      return;
+    }
+
+    if (location.state?.batchData?.length) {
+      setBatchDataState(location.state.batchData);
+      return;
+    }
+
+    setBatchDataState([]);
+  }, [location.state, storedBatchData]);
 
   const handleViewFile = (item) => {
-    setParsedData(item);
+    setParsedData({
+      ...item,
+      parsed: item?.parsed || item,
+      validation: item?.validation || {},
+    });
     navigate('/claims');
+  };
+
+  const handleClearBatch = () => {
+    clearBatchData();
+    setBatchDataState([]);
+    setUploadedName('');
+    setUploadError('');
+    navigate('/batch', { replace: true, state: null });
   };
 
   const handleZipUpload = useCallback(async (acceptedFiles) => {
@@ -40,6 +71,7 @@ const Batch = () => {
       const { data } = response;
       const results = data?.results || [];
       setBatchData(results);
+      setBatchDataState(results);
       navigate('/batch', { replace: true, state: { batchData: results } });
     } catch (err) {
       setUploadError(err.response?.data?.detail || err.message || 'Failed to upload archive.');
@@ -111,6 +143,12 @@ const Batch = () => {
             <CheckCircle2 className="h-3.5 w-3.5" />
             Clear pass and fail signals
           </Pill>
+          {batchData.length > 0 ? (
+            <button type="button" onClick={handleClearBatch} className="btn-secondary">
+              <Trash2 className="h-4 w-4" />
+              Remove Saved Archive
+            </button>
+          ) : null}
         </div>
 
         {uploadError ? (
@@ -154,15 +192,15 @@ const Batch = () => {
                 {batchData.map((item, index) => {
                   const fileName = item.filename || item.file_name || `File ${index + 1}`;
                   const txType =
+                    item?.parsed?.transaction_info?.type ||
                     item?.parsed?.transaction_info?.transaction_type ||
+                    item?.transaction_info?.type ||
                     item?.transaction_info?.transaction_type ||
                     item?.transaction_type ||
                     'EDI';
-                  const errorCount =
-                    item?.validation?.errors?.length ||
-                    item?.parsed?.errors?.length ||
-                    item?.errors?.length ||
-                    0;
+                  const parseErrors = item?.parsed?.errors?.length || item?.errors?.length || 0;
+                  const validationErrorsLength = item?.validation?.errors?.length || 0;
+                  const errorCount = parseErrors + validationErrorsLength;
                   const passed = item.status === 'success' || errorCount === 0;
 
                   return (

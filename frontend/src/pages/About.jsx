@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, Database, Search, Shield, Sparkles, Workflow, Zap } from 'lucide-react';
+import { Bot, Database, Search, Shield, Workflow } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PageHeader, SurfaceCard, fadeUp } from '../components/ui';
 
@@ -46,11 +46,11 @@ const workflowSteps = [
 ];
 
 const userOutcomes = [
-  'Understand what transaction they are looking at without decoding raw segments manually.',
-  'See which loops, fields, and values matter in a clearer, structured representation.',
-  'Catch validation errors and warnings before they affect downstream claim handling.',
-  'Compare billed and paid outcomes with a more usable reconciliation workflow.',
-  'Ask follow-up questions in plain language through the AI-guided claim assistant.',
+  'Identify the claim, payer, provider, and patient context in one place.',
+  'Spot validation issues quickly before they move downstream.',
+  'Inspect the exact raw EDI beside the parsed structure during review.',
+  'Compare billed and paid values with less manual cross-checking.',
+  'Ask targeted questions when a denial or mismatch needs explanation.',
 ];
 
 const About = () => {
@@ -78,42 +78,6 @@ const About = () => {
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <SurfaceCard className="p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="rounded-[20px] bg-[color:rgba(10,143,122,0.12)] p-4 text-accent">
-              <Zap className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">Why this frontend direction matters</h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                EDI tools often feel either too raw for operations teams or too generic to support real claim workflows. ClaimCraft is designed to sit between those extremes: strong enough for technical review, clear enough for analysts, and polished enough to inspire trust from first use.
-              </p>
-              <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
-                The interface emphasizes clear structure, useful motion, and efficient space usage so users can move from upload to interpretation without visual confusion or wasted effort.
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
-
-        <SurfaceCard className="p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="rounded-[20px] bg-[color:rgba(227,165,43,0.14)] p-4 text-warm">
-              <Sparkles className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">What users should feel</h2>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Calm, guided, and confident. Every screen should answer three questions fast: what file am I looking at, what is the system telling me, and what should I do next?
-              </p>
-              <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
-                That is why the product focuses on cleaner hierarchy, stronger labels, visible system state, and fewer disconnected workflows.
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
-      </section>
-
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <SurfaceCard className="p-6 sm:p-8">
           <div className="flex items-center gap-3">
@@ -131,7 +95,7 @@ const About = () => {
                     {index + 1}
                   </span>
                   <div>
-                    <h3 className="text-base font-bold text-[var(--text-primary)]">{step.title}</h3>
+                    <h3 className="text-lg font-extrabold uppercase tracking-[0.12em] text-primary">{step.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{step.body}</p>
                   </div>
                 </div>
@@ -145,7 +109,7 @@ const About = () => {
             <div className="rounded-[18px] bg-[color:rgba(10,143,122,0.12)] p-3 text-accent">
               <Shield className="h-5 w-5" />
             </div>
-            <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">What this helps users do</h2>
+            <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">Why It Is Useful</h2>
           </div>
 
           <div className="mt-6 space-y-3">

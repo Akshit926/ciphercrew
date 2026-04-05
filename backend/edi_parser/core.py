@@ -6,6 +6,50 @@ Handles ISA envelope detection, delimiter extraction, segment splitting
 from typing import Optional
 
 
+SEGMENT_NAMES = {
+    "ISA": "Interchange Control Header",
+    "IEA": "Interchange Control Trailer",
+    "GS": "Functional Group Header",
+    "GE": "Functional Group Trailer",
+    "ST": "Transaction Set Header",
+    "SE": "Transaction Set Trailer",
+    "BPR": "Beginning of Payment Order/Remittance Advice",
+    "TRN": "Reassociation Trace Number",
+    "DTM": "Date or Time Period",
+    "N1": "Name",
+    "NM1": "Individual or Organizational Name",
+    "N3": "Address Information",
+    "N4": "Geographic Location",
+    "PER": "Administrative Communications Contact",
+    "REF": "Reference Identification",
+    "HL": "Hierarchical Level",
+    "PRV": "Provider Information",
+    "SBR": "Subscriber Information",
+    "PAT": "Patient Information",
+    "DMG": "Demographic Information",
+    "CLM": "Claim Information",
+    "DTP": "Date or Time Period",
+    "HI": "Health Care Diagnosis Code",
+    "LX": "Line Counter",
+    "SV1": "Professional Service Line",
+    "SV2": "Institutional Service Line",
+    "CLP": "Claim Level Data",
+    "CAS": "Claim Adjustment",
+    "AMT": "Monetary Amount",
+    "QTY": "Quantity",
+    "SVC": "Service Payment Information",
+    "PLB": "Provider Level Adjustment",
+    "BGN": "Beginning Segment",
+    "INS": "Insured Benefit",
+    "HD": "Health Coverage",
+    "COB": "Coordination of Benefits",
+    "DSB": "Disability Information",
+    "EC": "Employment Class",
+    "ICM": "Individual Income",
+    "LUI": "Language Use",
+}
+
+
 ELEMENT_LABELS = {
     "ISA": {
         "01": "Authorization Info Qualifier",
@@ -664,7 +708,7 @@ def tokenize(raw, delimiters):
         elements = {}
         for i, val in enumerate(parsed_elements):
             key = f"{seg_id}{str(i+1).zfill(2)}"
-            label = label_map.get(str(i+1).zfill(2)), f"Element {str(i+1).zfill(2)}"
+            label = label_map.get(str(i + 1).zfill(2), f"Element {str(i + 1).zfill(2)}")
             elements[key] = {"label": label, "value": val}
 
         segments.append({
@@ -676,9 +720,8 @@ def tokenize(raw, delimiters):
     return segments, warnings
 
 
-def _segment_name(seg_id):  
-    names = SEGMENT_NAMES
-    return names.get(seg_id, seg_id)
+def _segment_name(seg_id):
+    return SEGMENT_NAMES.get(seg_id, seg_id)
 
 
 def detect_transaction_type(segments: list) -> str:
