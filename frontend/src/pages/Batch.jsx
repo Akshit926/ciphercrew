@@ -66,6 +66,7 @@ const Batch = () => {
     const formData = new FormData();
     formData.append('file', file);
 
+    
     try {
       const response = await axios.post(`${import.meta.env.VITE_API_BASE}/parse`, formData);
       const { data } = response;
