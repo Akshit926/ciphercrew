@@ -10,7 +10,17 @@ import {
   Shield,
   Stethoscope,
   User,
+  Download // Added Download icon
 } from 'lucide-react';
+
+// --- Bulletproof money formatter to prevent $NaN ---
+const formatMoney = (val) => {
+  if (val === null || val === undefined || val === '') return null;
+  const cleanVal = Array.isArray(val) ? val[0] : val;
+  const num = parseFloat(cleanVal);
+  if (isNaN(num)) return String(cleanVal);
+  return `$${num.toFixed(2)}`;
+};
 
 const ExpandableCard = ({ title, loopInfo, icon: Icon, children, defaultOpen = true, forceState }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -55,21 +65,33 @@ const DataRow = ({ label, value }) => {
   );
 };
 
-const ServiceLine837 = ({ line, index, forceState }) => (
-  <ExpandableCard title={`Service Line (${index + 1})`} loopInfo="Loop 2400" icon={Stethoscope} forceState={forceState}>
-    <DataRow label="Procedure" value={`${line.procedure || ''} ${line.procedure_qualifier ? `(${line.procedure_qualifier})` : ''}`.trim()} />
-    <DataRow label="Charge" value={line.charge ? `$${parseFloat(line.charge).toFixed(2)}` : null} />
-    <DataRow label="Units" value={line.unit_count ? `${line.unit_count} ${line.units || 'UN'}` : null} />
-    <DataRow label="Revenue" value={line.revenue_code} />
-  </ExpandableCard>
-);
+const ServiceLine837 = ({ line, index, forceState }) => {
+  // Re-integrated fetched procedure descriptions
+  const procCode = line.procedure || '';
+  const procDesc = line.procedure_description && line.procedure_description !== "Unknown Procedure" ? ` - ${line.procedure_description}` : '';
+  const procDisplay = `${procCode}${procDesc} ${line.procedure_qualifier ? `(${line.procedure_qualifier})` : ''}`.trim();
+
+  return (
+    <ExpandableCard title={`Service Line (${index + 1})`} loopInfo="Loop 2400" icon={Stethoscope} forceState={forceState}>
+      <DataRow label="Procedure" value={procDisplay} />
+      <DataRow label="Charge" value={formatMoney(line.charge)} />
+      <DataRow label="Units" value={line.unit_count ? `${line.unit_count} ${line.units || 'UN'}` : null} />
+      <DataRow label="Revenue" value={line.revenue_code} />
+    </ExpandableCard>
+  );
+};
 
 const ClaimDetails837 = ({ claim, forceState }) => {
-  const diags = claim.diagnosis_codes?.map((d) => d.code).join(', ');
+  // Re-integrated fetched ICD-10 descriptions
+  const diags = claim.diagnosis_codes?.map((d) => {
+    const desc = d.description && d.description !== "Unknown Diagnosis" ? ` (${d.description})` : '';
+    return `${d.code}${desc}`;
+  }).join(', ');
+  
   return (
     <ExpandableCard title="Claim Details" loopInfo="Loop 2300" icon={FileText} forceState={forceState}>
       <DataRow label="Claim Control ID" value={claim.claim_id} />
-      <DataRow label="Total Claim Amount" value={claim.total_charge ? `$${parseFloat(claim.total_charge).toFixed(2)}` : null} />
+      <DataRow label="Total Claim Amount" value={formatMoney(claim.total_charge)} />
       <DataRow label="POS Code" value={`${claim.facility_type || ''} ${claim.facility_type_name && claim.facility_type_name !== claim.facility_type ? `- ${claim.facility_type_name}` : ''}`.trim()} />
       <DataRow label="Diagnosis" value={diags} />
       {claim.service_lines?.length > 0 ? (
@@ -127,26 +149,33 @@ const Adjustment835 = ({ adj, index, forceState }) => (
     {adj.adjustments?.map((a, i) => (
       <div key={i} className="mb-2 border-b border-[var(--border-default)] pb-2 last:border-0 last:pb-0">
         <DataRow label="Reason" value={`${a.reason_code}: ${a.reason_description}`} />
-        <DataRow label="Amount" value={a.amount ? `-$${parseFloat(a.amount).toFixed(2)}` : null} />
+        <DataRow label="Amount" value={a.amount ? `-${formatMoney(a.amount)}` : null} />
       </div>
     ))}
   </ExpandableCard>
 );
 
-const ServiceLine835 = ({ svc, index, forceState }) => (
-  <ExpandableCard title={`Service Line (${svc.procedure_code || index + 1})`} loopInfo="SVC" icon={Stethoscope} defaultOpen={false} forceState={forceState}>
-    <DataRow label="Procedure" value={`${svc.procedure_code || ''} ${svc.procedure_qualifier ? `(${svc.procedure_qualifier})` : ''}`.trim()} />
-    <DataRow label="Billed" value={svc.billed_amount ? `$${parseFloat(svc.billed_amount).toFixed(2)}` : null} />
-    <DataRow label="Paid" value={svc.paid_amount ? `$${parseFloat(svc.paid_amount).toFixed(2)}` : null} />
-    {svc.adjustments?.length > 0 ? (
-      <div className="mt-2 border-t border-[var(--border-default)] pt-2">
-        {svc.adjustments.map((adj, idx) => (
-          <Adjustment835 key={idx} adj={adj} index={idx} forceState={forceState} />
-        ))}
-      </div>
-    ) : null}
-  </ExpandableCard>
-);
+const ServiceLine835 = ({ svc, index, forceState }) => {
+  // Re-integrated fetched procedure descriptions
+  const procCode = svc.procedure_code || '';
+  const procDesc = svc.procedure_description && svc.procedure_description !== "Unknown Procedure" ? ` - ${svc.procedure_description}` : '';
+  const procDisplay = `${procCode}${procDesc} ${svc.procedure_qualifier ? `(${svc.procedure_qualifier})` : ''}`.trim();
+
+  return (
+    <ExpandableCard title={`Service Line (${procCode || index + 1})`} loopInfo="SVC" icon={Stethoscope} defaultOpen={false} forceState={forceState}>
+      <DataRow label="Procedure" value={procDisplay} />
+      <DataRow label="Billed" value={formatMoney(svc.billed_amount)} />
+      <DataRow label="Paid" value={formatMoney(svc.paid_amount)} />
+      {svc.adjustments?.length > 0 ? (
+        <div className="mt-2 border-t border-[var(--border-default)] pt-2">
+          {svc.adjustments.map((adj, idx) => (
+            <Adjustment835 key={idx} adj={adj} index={idx} forceState={forceState} />
+          ))}
+        </div>
+      ) : null}
+    </ExpandableCard>
+  );
+};
 
 const Claim835 = ({ clp, forceState }) => {
   const p = clp.patient;
@@ -155,9 +184,9 @@ const Claim835 = ({ clp, forceState }) => {
     <ExpandableCard title={`Claim: ${clp.claim_id}`} loopInfo="CLP Loop" icon={DollarSign} forceState={forceState}>
       <DataRow label="Status" value={`${clp.claim_status_code} - ${clp.claim_status}`} />
       <DataRow label="Patient" value={patName} />
-      <DataRow label="Billed Amount" value={clp.billed_amount ? `$${parseFloat(clp.billed_amount).toFixed(2)}` : null} />
-      <DataRow label="Paid Amount" value={clp.paid_amount ? `$${parseFloat(clp.paid_amount).toFixed(2)}` : null} />
-      <DataRow label="Patient Resp." value={clp.patient_responsibility ? `$${parseFloat(clp.patient_responsibility).toFixed(2)}` : null} />
+      <DataRow label="Billed Amount" value={formatMoney(clp.billed_amount)} />
+      <DataRow label="Paid Amount" value={formatMoney(clp.paid_amount)} />
+      <DataRow label="Patient Resp." value={formatMoney(clp.patient_responsibility)} />
 
       {clp.adjustments?.length > 0 ? (
         <div className="mt-3 space-y-1 border-t border-[var(--border-default)] pt-3">
@@ -219,6 +248,22 @@ const SemanticClaimViewer = ({ treeData }) => {
     setTimeout(() => setForceState(null), 50);
   };
 
+  // ADDED: Download Function
+  const handleDownload = () => {
+    const raw = treeData?.raw_edi || treeData?.raw || treeData?.parsed?.raw_edi || '';
+    if (!raw) return alert("No raw EDI data available to download.");
+    
+    const blob = new Blob([raw], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ClaimCraft_Corrected.edi';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const targetObj = treeData?.tree || treeData;
   const loopsToRender =
     targetObj?.loops ||
@@ -254,12 +299,23 @@ const SemanticClaimViewer = ({ treeData }) => {
             {txType || '837P'}
           </span>
         </h3>
-        <button
-          onClick={handleToggleAll}
-          className="text-xs font-semibold text-primary transition-colors hover:text-primary/80 focus:outline-none"
-        >
-          {globalExpand ? 'Collapse All' : 'Expand All'}
-        </button>
+        
+        {/* ADDED: Button Group for Expand All & Export EDI */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleToggleAll}
+            className="text-xs font-semibold text-primary transition-colors hover:text-primary/80 focus:outline-none"
+          >
+            {globalExpand ? 'Collapse All' : 'Expand All'}
+          </button>
+
+          <button 
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-3 py-1.5 text-xs font-bold text-[var(--bg-base)] shadow-sm transition-colors hover:opacity-90 focus:outline-none"
+          >
+            <Download className="h-3.5 w-3.5" /> Export EDI
+          </button>
+        </div>
       </div>
 
       <div className="custom-scrollbar flex-1 overflow-auto p-4">

@@ -465,7 +465,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import parse, validate, chat, reconcile, export
+from routes import parse, validate, chat, reconcile, export, autofix
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -489,6 +489,7 @@ app.include_router(validate.router, tags=["Validate"])
 app.include_router(chat.router, tags=["Chat"])
 app.include_router(reconcile.router, tags=["Reconcile"])
 app.include_router(export.router, tags=["Export"])
+app.include_router(autofix.router, tags=["AutoFix"])
 
 # ── Health ────────────────────────────────────────────────────────────────────
 @app.get("/health", tags=["System"])

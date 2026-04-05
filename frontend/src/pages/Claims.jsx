@@ -11,10 +11,12 @@ import {
   RefreshCw,
   Send,
   Sparkles,
+  Wand2,
 } from 'lucide-react';
 import { useEdiStore } from '../store/useEdiStore';
 import SemanticClaimViewer from '../components/SemanticClaimViewer';
 import { MetricCard, Pill } from '../components/ui';
+import AutoFixModal from '../components/AutoFixModal';
 
 const tabs = [
   { id: 'validation', label: 'Validation', icon: ClipboardCheck },
@@ -78,6 +80,8 @@ const Claims = () => {
   const [chatting, setChatting] = useState(false);
   const [activeTab, setActiveTab] = useState('validation');
   const chatEndRef = useRef(null);
+  
+  const [isAutoFixOpen, setIsAutoFixOpen] = useState(false); 
 
   useEffect(() => {
     if (!parsedData) navigate('/');
@@ -135,7 +139,8 @@ const Claims = () => {
   const handleFullValidate = async () => {
     setValidating(true);
     try {
-      const res = await axios.post('/api/validate/full', { parsed: payload });
+      const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const res = await axios.post(`${baseUrl}/validate/full`, { parsed: payload });
       const newErrors = res.data.errors || res.data.validation?.errors || [];
       const newWarnings = res.data.warnings || res.data.validation?.warnings || [];
       setValidationItems([...newErrors, ...newWarnings]);
@@ -164,7 +169,7 @@ const Claims = () => {
     ]);
 
     try {
-      const res = await axios.post('/api/chat', {
+      const res = await axios.post('/chat', {
         message,
         history: historyForApi,
         parsed_context: {
@@ -281,7 +286,7 @@ const Claims = () => {
         <div className="mt-6 flex flex-wrap gap-3">
           <Pill tone="primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Route preserved: `/api/chat` and `/api/validate/full`
+            Route preserved: `/chat` and `/validate/full`
           </Pill>
           <Pill tone={errorCount > 0 ? 'danger' : 'success'}>
             {errorCount > 0 ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -354,6 +359,22 @@ const Claims = () => {
                   <p className="mt-2 text-2xl font-extrabold text-warning">{warningCount}</p>
                 </div>
               </div>
+              
+              <div className="border-b px-5 py-3">
+                <button 
+                  onClick={() => setIsAutoFixOpen(true)}
+                  disabled={errorCount === 0}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all group ${
+                    errorCount > 0 
+                      ? 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-md' 
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Wand2 className={`h-4 w-4 ${errorCount > 0 ? 'text-[var(--accent-primary)] group-hover:animate-pulse' : 'text-slate-400'}`} /> 
+                  {errorCount > 0 ? 'Auto-Fix with AI' : 'No Fixes Needed'}
+                </button>
+              </div>
+
               <div className="custom-scrollbar flex-1 overflow-auto px-5 py-5">
                 {validationItems.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-[var(--text-secondary)]">
@@ -453,6 +474,14 @@ const Claims = () => {
           </div>
         </div>
       </section>
+
+      <AutoFixModal 
+        isOpen={isAutoFixOpen} 
+        onClose={() => setIsAutoFixOpen(false)} 
+        rawEdi={rawEdi} 
+        errors={validationItems.filter(item => item.severity === 'ERROR' || !item.severity)} 
+      />
+
     </div>
   );
 };
