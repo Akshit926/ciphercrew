@@ -62,8 +62,14 @@ const Claims = () => {
   const navigate = useNavigate();
   const parsedData = useEdiStore((state) => state.parsedData);
 
-  const initialErrors = parsedData?.validation?.errors || parsedData?.parsed?.errors || parsedData?.errors || [];
-  const initialWarnings = parsedData?.validation?.warnings || parsedData?.parsed?.warnings || parsedData?.warnings || [];
+  const initialErrors = [
+    ...(parsedData?.parsed?.errors || parsedData?.errors || []),
+    ...(parsedData?.validation?.errors || [])
+  ];
+  const initialWarnings = [
+    ...(parsedData?.parsed?.warnings || parsedData?.warnings || []),
+    ...(parsedData?.validation?.warnings || [])
+  ];
 
   const [validating, setValidating] = useState(false);
   const [validationItems, setValidationItems] = useState([...initialErrors, ...initialWarnings]);
@@ -85,14 +91,17 @@ const Claims = () => {
 
   const payload = parsedData.parsed || parsedData;
   const transactionInfo = payload.transaction_info || parsedData.transaction_info || {};
-  const txType = payload.transaction_type || transactionInfo.transaction_type || parsedData.transaction_type || 'EDI';
-  const rawEdi = payload.raw_edi || parsedData.raw_edi || '';
+  const txType = payload.transaction_type || transactionInfo.type || transactionInfo.transaction_type || parsedData.transaction_type || 'EDI';
+  const rawEdi = payload.raw_edi || payload.raw || parsedData.raw_edi || parsedData.raw || '';
   const rawSegments = rawEdi
-    ? rawEdi
-        .split('~')
-        .map((segment) => segment.trim())
-        .filter(Boolean)
-        .map((segment) => `${segment}~`)
+    ? rawEdi.includes('\n')
+      ? rawEdi
+          .split(/\r?\n/)
+          .filter((line) => line.length > 0)
+      : rawEdi
+          .split('~')
+          .filter((segment) => segment.length > 0)
+          .map((segment) => `${segment}~`)
     : [];
 
   const errorCount = validationItems.filter((item) => item.severity === 'ERROR' || !item.severity).length;
@@ -194,7 +203,7 @@ const Claims = () => {
   const renderValidationItem = (item, index) => {
     const isWarning = item.severity === 'WARNING';
     const message =
-      typeof item === 'object' ? item.message || item.description || JSON.stringify(item) : item;
+      typeof item === 'object' ? item.message || item.detail || item.description || JSON.stringify(item) : item;
 
     return (
       <div
@@ -232,11 +241,14 @@ const Claims = () => {
   };
 
   const renderRawSegment = (segment, index) => (
-    <div key={`${segment}-${index}`} className="grid grid-cols-[auto_1fr] gap-3">
-      <span className="mt-0.5 rounded-full bg-[color:rgba(15,108,189,0.12)] px-2.5 py-1 font-code text-[11px] font-semibold text-primary">
-        {String(index + 1).padStart(3, '0')}
+    <div
+      key={`${segment}-${index}`}
+      className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-4 rounded-xl px-3 py-2 hover:bg-[color:rgba(15,108,189,0.05)]"
+    >
+      <span className="pt-0.5 text-right font-code text-xs font-semibold tabular-nums text-[var(--text-soft)]">
+        {index + 1}
       </span>
-      <code className="min-w-0 whitespace-pre-wrap break-all text-[13px] leading-7 text-[var(--text-primary)]">
+      <code className="min-w-0 whitespace-pre-wrap break-all font-code text-[13px] leading-7 text-[var(--text-primary)]">
         {segment}
       </code>
     </div>
