@@ -38,8 +38,8 @@ const Navbar = () => {
 
   const navClass = useMemo(
     () =>
-      `fixed inset-x-0 top-0 z-50 transition duration-300 ${
-        scrolled ? 'pt-3' : 'pt-4'
+      `fixed inset-x-0 top-0 z-50 transition duration-500 ${
+        scrolled ? 'pt-3' : 'pt-5'
       }`,
     [scrolled],
   );
@@ -48,29 +48,29 @@ const Navbar = () => {
     <header className={navClass}>
       <div className="mx-auto max-w-[1320px] px-5 sm:px-6 lg:px-6">
         <div
-          className={`glass-panel flex items-center justify-between px-4 py-3 sm:px-5 ${
+          className={`glass-panel flex items-center justify-between px-5 py-3.5 sm:px-6 ${
             scrolled ? 'shadow-[var(--shadow-md)]' : ''
           }`}
         >
           <NavLink to="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[color:rgba(15,108,189,0.12)] text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-[var(--border-strong)] bg-[color:rgba(15,108,189,0.12)] text-primary">
               <Activity className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-headline text-lg font-bold">ClaimCraft</p>
+              <p className="font-headline text-lg font-bold leading-none">ClaimCraft</p>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
                 EDI Intelligence
               </p>
             </div>
           </NavLink>
 
-          <nav className="hidden items-center gap-2 lg:flex">
+          <nav className="hidden items-center gap-2.5 lg:flex">
             {navLinks.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
                 className={({ isActive }) =>
-                  `rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  `rounded-full px-4 py-2.5 text-sm font-semibold transition duration-300 ${
                     isActive
                       ? 'bg-[color:rgba(15,108,189,0.12)] text-primary'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
@@ -86,7 +86,7 @@ const Navbar = () => {
             <button
               type="button"
               onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] transition hover:text-primary"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-[20px] border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] transition duration-300 hover:text-primary"
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -94,7 +94,7 @@ const Navbar = () => {
             <button
               type="button"
               onClick={() => setIsOpen((prev) => !prev)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] lg:hidden"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-[20px] border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] transition duration-300 lg:hidden"
               aria-label="Open menu"
             >
               {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -105,19 +105,19 @@ const Navbar = () => {
         <AnimatePresence>
           {isOpen ? (
             <motion.div
-              initial={{ opacity: 0, y: -12 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               className="glass-panel mt-3 overflow-hidden lg:hidden"
             >
-              <div className="grid gap-1 p-2">
+              <div className="grid gap-1.5 p-3">
                 {navLinks.map((link) => (
                   <NavLink
                     key={link.path}
                     to={link.path}
                     className={({ isActive }) =>
-                      `rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                      `rounded-[20px] px-4 py-3 text-sm font-semibold transition duration-300 ${
                         isActive
                           ? 'bg-[color:rgba(15,108,189,0.12)] text-primary'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'

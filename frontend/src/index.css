@@ -61,10 +61,11 @@
 
   body {
     @apply m-0 min-h-screen overflow-x-hidden bg-[var(--bg-base)] font-sans text-[var(--text-primary)] antialiased;
+    line-height: 1.55;
     background-image:
-      radial-gradient(circle at top left, rgba(15, 108, 189, 0.12), transparent 28%),
-      radial-gradient(circle at 85% 20%, rgba(10, 143, 122, 0.1), transparent 24%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 28%);
+      radial-gradient(circle at top left, rgba(15, 108, 189, 0.1), transparent 30%),
+      radial-gradient(circle at 85% 20%, rgba(10, 143, 122, 0.08), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 30%);
   }
 
   body::before {
@@ -73,11 +74,11 @@
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(130, 152, 178, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(130, 152, 178, 0.08) 1px, transparent 1px);
-    background-size: 32px 32px;
+      linear-gradient(rgba(130, 152, 178, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(130, 152, 178, 0.06) 1px, transparent 1px);
+    background-size: 36px 36px;
     mask-image: radial-gradient(circle at center, black 35%, transparent 90%);
-    opacity: 0.35;
+    opacity: 0.22;
     z-index: -2;
   }
 
@@ -136,21 +137,21 @@
   }
 
   .page-shell {
-    @apply mx-auto w-full max-w-[1320px] px-5 pt-20 pb-4 sm:px-6 sm:pt-24 sm:pb-5 lg:px-6 lg:pt-28 lg:pb-6;
+    @apply mx-auto w-full max-w-[1380px] px-4 pt-24 pb-8 sm:px-5 sm:pt-28 sm:pb-10 lg:px-6 lg:pt-32 lg:pb-12;
   }
 
   .section-shell {
-    @apply rounded-[28px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 backdrop-blur-xl sm:p-6 lg:p-8;
+    @apply rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 backdrop-blur-xl sm:p-7 lg:p-8;
     box-shadow: var(--shadow-sm);
   }
 
   .glass-panel {
-    @apply rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface)] backdrop-blur-xl;
+    @apply rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] backdrop-blur-xl;
     box-shadow: var(--shadow-sm);
   }
 
   .glass-panel-strong {
-    @apply rounded-[28px] border border-[var(--border-strong)] bg-[var(--bg-surface-strong)];
+    @apply rounded-[24px] border border-[var(--border-strong)] bg-[var(--bg-surface-strong)];
     box-shadow: var(--shadow-md);
   }
 
@@ -159,34 +160,41 @@
     background: rgba(255, 255, 255, 0.55);
   }
 
+  [data-theme='dark'] .hero-badge {
+    background: rgba(86, 177, 255, 0.12);
+    border-color: rgba(86, 177, 255, 0.28);
+    color: #9fd0ff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
   .metric-card {
-    @apply rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] p-4;
+    @apply rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] p-5 sm:p-6;
     box-shadow: var(--shadow-sm);
   }
 
   .trust-card {
-    @apply rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] p-5 transition duration-300;
+    @apply rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] p-6 transition duration-500;
     box-shadow: var(--shadow-sm);
   }
 
   .trust-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white transition duration-300 disabled:cursor-not-allowed disabled:opacity-50;
     background: linear-gradient(135deg, var(--accent-primary), #0b82c6);
     box-shadow: 0 20px 40px rgba(15, 108, 189, 0.22);
   }
 
   .btn-primary:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.02);
+    transform: translateY(-1px) scale(1.005);
+    filter: brightness(1.015);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3.5 text-sm font-semibold text-[var(--text-primary)] transition duration-300 disabled:cursor-not-allowed disabled:opacity-50;
     background: rgba(255, 255, 255, 0.58);
   }
 
@@ -196,7 +204,7 @@
   }
 
   .input-shell {
-    @apply w-full rounded-[18px] border bg-[var(--bg-surface-strong)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition;
+    @apply w-full rounded-[16px] border bg-[var(--bg-surface-strong)] px-4 py-3.5 text-sm text-[var(--text-primary)] outline-none transition duration-300;
   }
 
   .input-shell:focus {
@@ -205,12 +213,45 @@
   }
 
   .tab-chip {
-    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition;
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition duration-300;
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-[24px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)];
+    @apply overflow-hidden rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)];
     box-shadow: var(--shadow-sm);
+  }
+
+  .hero-review-shell {
+    @apply border border-[var(--border-strong)];
+    background: linear-gradient(180deg, rgba(15, 108, 189, 0.12), rgba(255, 255, 255, 0.22));
+  }
+
+  .upload-dropzone-shell {
+    @apply border border-dashed border-[var(--border-strong)];
+    background: linear-gradient(180deg, rgba(15, 108, 189, 0.08), rgba(255, 255, 255, 0.45));
+  }
+
+  .batch-upload-shell {
+    @apply border border-dashed border-[var(--border-strong)];
+    background: linear-gradient(180deg, rgba(15, 108, 189, 0.1), rgba(236, 244, 253, 0.82));
+  }
+
+  [data-theme='dark'] .hero-review-shell {
+    border-color: rgba(86, 177, 255, 0.18);
+    background: linear-gradient(180deg, rgba(20, 46, 78, 0.92), rgba(13, 25, 40, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  [data-theme='dark'] .upload-dropzone-shell {
+    border-color: rgba(86, 177, 255, 0.18);
+    background: linear-gradient(180deg, rgba(22, 42, 68, 0.96), rgba(15, 28, 45, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  [data-theme='dark'] .batch-upload-shell {
+    border-color: rgba(86, 177, 255, 0.18);
+    background: linear-gradient(180deg, rgba(20, 44, 72, 0.94), rgba(14, 28, 45, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   }
 
   .custom-scrollbar {

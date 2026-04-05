@@ -2,32 +2,32 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 export const fadeUp = {
-  initial: { opacity: 0, y: 22 },
+  initial: { opacity: 0, y: 14 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.25 },
+  viewport: { once: true, amount: 0.18 },
 };
 
 export const PageHeader = ({ eyebrow, title, description, action }) => (
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div className="max-w-3xl">
+  <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+    <div className="max-w-3xl space-y-0.5">
       {eyebrow ? (
         <span className="hero-badge border-[var(--border-strong)] text-primary">
           {eyebrow}
         </span>
       ) : null}
-      <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[var(--text-primary)] sm:text-5xl">
+      <h1 className="mt-4 text-4xl font-extrabold leading-[1.04] text-[var(--text-primary)] sm:text-5xl">
         {title}
       </h1>
       {description ? (
         <p
-          className="mt-3 max-w-2xl text-base leading-7 sm:text-lg"
+          className="mt-3 max-w-[46rem] text-base leading-7 sm:text-lg sm:leading-8"
           style={{ color: 'color-mix(in srgb, var(--text-primary) 72%, var(--bg-base) 28%)' }}
         >
           {description}
         </p>
       ) : null}
     </div>
-    {action ? <div className="shrink-0">{action}</div> : null}
+    {action ? <div className="shrink-0 lg:max-w-[24rem]">{action}</div> : null}
   </div>
 );
 
@@ -36,10 +36,10 @@ export const SectionTitle = ({ eyebrow, title, description, align = 'left' }) =>
     {eyebrow ? (
       <span className="hero-badge border-[var(--border-strong)] text-primary">{eyebrow}</span>
     ) : null}
-    <h2 className="mt-4 text-3xl font-extrabold leading-tight text-[var(--text-primary)] sm:text-4xl">{title}</h2>
+    <h2 className="mt-4 text-3xl font-extrabold leading-[1.08] text-[var(--text-primary)] sm:text-4xl">{title}</h2>
     {description ? (
       <p
-        className="mt-3 text-base leading-7 sm:text-lg"
+        className="mt-3 max-w-[44rem] text-base leading-7 sm:text-lg sm:leading-8"
         style={{ color: 'color-mix(in srgb, var(--text-primary) 72%, var(--bg-base) 28%)' }}
       >
         {description}
@@ -51,7 +51,7 @@ export const SectionTitle = ({ eyebrow, title, description, align = 'left' }) =>
 export const MetricCard = ({ label, value, hint, accent = 'var(--accent-primary)' }) => (
   <motion.div
     {...fadeUp}
-    transition={{ duration: 0.45 }}
+    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     className="metric-card"
   >
     <div className="flex items-start justify-between gap-4">

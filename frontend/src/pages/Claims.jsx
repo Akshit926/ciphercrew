@@ -243,7 +243,7 @@ const Claims = () => {
   const renderRawSegment = (segment, index) => (
     <div
       key={`${segment}-${index}`}
-      className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-4 rounded-xl px-3 py-2 hover:bg-[color:rgba(15,108,189,0.05)]"
+      className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-3 rounded-xl pl-1 pr-3 py-2 hover:bg-[color:rgba(15,108,189,0.05)]"
     >
       <span className="pt-0.5 text-right font-code text-xs font-semibold tabular-nums text-[var(--text-soft)]">
         {index + 1}
@@ -446,7 +446,7 @@ const Claims = () => {
                 <p className="font-semibold">No raw EDI content available.</p>
               </div>
             ) : (
-              <div className="rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] px-4 py-4">
+              <div className="rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] pl-0 pr-2 py-4">
                 <div className="space-y-4">{rawSegments.map(renderRawSegment)}</div>
               </div>
             )}

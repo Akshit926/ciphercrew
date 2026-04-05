@@ -113,7 +113,7 @@ const Batch = () => {
           action={
             <div
               {...batchDropzone.getRootProps()}
-              className={`w-full cursor-pointer rounded-[28px] border border-dashed border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(15,108,189,0.08),rgba(255,255,255,0.45))] p-6 text-center transition duration-300 sm:w-[320px] ${
+              className={`batch-upload-shell w-full cursor-pointer rounded-[28px] p-6 text-center transition duration-300 sm:w-[320px] ${
                 batchDropzone.isDragActive ? 'scale-[1.01] border-[var(--accent-primary)]' : ''
               }`}
             >

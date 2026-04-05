@@ -5,18 +5,16 @@ import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
-  Bot,
   CheckCircle2,
   FileStack,
   GitCompareArrows,
   MessagesSquare,
   ScanSearch,
   ShieldCheck,
-  Sparkles,
   UploadCloud,
 } from 'lucide-react';
 import { useEdiStore } from '../store/useEdiStore';
-import { MetricCard, PageHeader, Pill, SectionTitle, SurfaceCard, fadeUp } from '../components/ui';
+import { MetricCard, PageHeader, SectionTitle, SurfaceCard, fadeUp } from '../components/ui';
 import Welcome, { shouldShowWelcome } from './Welcome';
 
 const trustMetrics = [
@@ -168,43 +166,14 @@ const Home = () => {
                   </button>
                 </div>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                  <Pill tone="primary">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Cleaner interaction model
-                  </Pill>
-                  <Pill tone="success">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    No backend route changes
-                  </Pill>
-                  <Pill tone="warning">
-                    <Bot className="h-3.5 w-3.5" />
-                    AI-ready review surfaces
-                  </Pill>
-                </div>
               </div>
 
               <motion.div
-                className="rounded-[28px] border border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(15,108,189,0.12),rgba(255,255,255,0.22))] p-5"
+                className="hero-review-shell rounded-[28px] p-5"
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
               >
                 <div className="grid gap-4">
-                  <div className="rounded-[22px] border bg-[var(--bg-surface-strong)] p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-soft)]">Session Confidence</p>
-                        <p className="mt-2 text-3xl font-extrabold text-primary">98.2%</p>
-                      </div>
-                      <div className="rounded-2xl bg-[color:rgba(15,108,189,0.12)] p-3 text-primary">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-                      Visual hierarchy is tuned for trust: strong labels, compact cards, and clear action paths.
-                    </p>
-                  </div>
-
                   <div className="rounded-[22px] border bg-[var(--bg-surface-strong)] p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -250,7 +219,7 @@ const Home = () => {
               </div>
 
               <div className="flex flex-1">
-                <div className="flex w-full flex-1 flex-col items-center justify-center rounded-[28px] border border-dashed border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(15,108,189,0.08),rgba(255,255,255,0.45))] p-6 text-center">
+                <div className="upload-dropzone-shell flex w-full flex-1 flex-col items-center justify-center rounded-[28px] p-6 text-center">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[var(--bg-surface-strong)] text-primary shadow-[var(--shadow-sm)]">
                   <UploadCloud className="h-7 w-7" />
                   </div>
@@ -281,7 +250,7 @@ const Home = () => {
         <section className="section-shell">
           <SectionTitle
             eyebrow="What Makes It Better"
-            title="Denser, calmer, and more trustworthy than a generic parser UI."
+            title="Denser, calmer, and more trustworthy than a generic parser."
             description="The new structure avoids dead whitespace, sharpens information hierarchy, and keeps primary actions close to the data users need."
           />
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -328,34 +297,6 @@ const Home = () => {
               ))}
             </div>
           </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <SurfaceCard className="p-6 sm:p-8">
-            <span className="hero-badge border-[var(--border-strong)] text-primary">Outcome</span>
-            <h2 className="mt-4 text-3xl font-extrabold text-[var(--text-primary)]">An interface that feels enterprise-ready instead of hackathon-fragile.</h2>
-            <p
-              className="mt-3 max-w-2xl text-base leading-7"
-              style={{ color: 'color-mix(in srgb, var(--text-primary) 72%, var(--bg-base) 28%)' }}
-            >
-              This frontend direction is optimized for user trust: stronger typography, cleaner panels, tighter spacing, and meaningful motion without changing the backend contract.
-            </p>
-          </SurfaceCard>
-
-          <SurfaceCard className="p-6 sm:p-8">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-[color:rgba(227,165,43,0.14)] p-3 text-warm">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--text-soft)]">AI Assistance</p>
-                <p className="text-xl font-bold">Claim-aware Q&A built in</p>
-              </div>
-            </div>
-            <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
-              The downstream claim review page keeps the validation panel, raw segment access, and AI conversation together so users do not bounce across disconnected pages.
-            </p>
-          </SurfaceCard>
         </section>
       </div>
     </>
