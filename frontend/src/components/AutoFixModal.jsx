@@ -21,7 +21,7 @@ const AutoFixModal = ({ isOpen, onClose, rawEdi, errors }) => {
   const generateFix = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:8000'}/autofix`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE}/autofix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_edi: rawEdi, errors: errors })

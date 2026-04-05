@@ -144,7 +144,7 @@ const Claims = () => {
   const handleFullValidate = async () => {
     setValidating(true);
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE ;
       const res = await axios.post(`${baseUrl}/validate/full`, { parsed: payload });
       const newErrors = res.data.errors || res.data.validation?.errors || [];
       const newWarnings = res.data.warnings || res.data.validation?.warnings || [];
@@ -174,7 +174,7 @@ const Claims = () => {
     ]);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE;
       const res = await axios.post(`${baseUrl}/chat`, {
         message,
         history: historyForApi,
