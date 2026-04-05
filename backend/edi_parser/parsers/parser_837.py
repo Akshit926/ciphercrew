@@ -3,13 +3,8 @@
 Parses full loop hierarchy per HIPAA 5010 X222A1 / X223A2 spec
 """
 
-<<<<<<< HEAD
-from ..core import (build_segment_dict,
-=======
-from ..core import build_segment_dict
-    
 from ..core import (
->>>>>>> f26a9afb64eda32ae98f22a8f807d4f90a4af77d
+    build_segment_dict,
     NM1_ENTITY_NAMES,
     FACILITY_TYPE_NAMES,
 )

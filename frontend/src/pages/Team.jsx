@@ -6,7 +6,7 @@ import { PageHeader, fadeUp } from '../components/ui';
 const teamMembers = [
   {
     name: 'Dhruv Vaswani',
-    role: 'Full Stack Engineer',
+    role: 'Full Stack Developer',
     shortBio: 'Architected the React interface and core Python EDI tokenization flows.',
     icon: Code2,
     education: '2nd Year AIML Student, PCCOE',
@@ -24,7 +24,7 @@ const teamMembers = [
   },
   {
     name: 'Vitthal Humbe',
-    role: 'Backend Developer',
+    role: 'System Designer',
     shortBio: 'Engineered the FastAPI parsing pipeline and Groq-backed AI integration.',
     icon: Wrench,
     education: '2nd Year Engineering Student, PCCOE',
@@ -33,7 +33,7 @@ const teamMembers = [
   },
   {
     name: 'Avinash Pawar',
-    role: 'Backend Developer & Data Engineer',
+    role: 'Backend Developer',
     shortBio: 'Designed HIPAA validation mappings and supported backend logic for parser output quality.',
     icon: Database,
     education: '2nd Year Engineering Student, PCCOE',
