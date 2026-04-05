@@ -1,25 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        primary: '#00236f',
-        accent: '#3b82f6',
-        inspiron: '#ea580c',
-        danger: '#ef4444',
-        success: '#22c55e',
-        surface: '#f7f9fb',
+        base: 'var(--bg-base)',
+        surface: 'var(--bg-surface)',
+        elevated: 'var(--bg-elevated)',
+        muted: 'var(--bg-muted)',
+        primary: 'var(--accent-primary)',
+        accent: 'var(--accent-secondary)',
+        warm: 'var(--accent-warm)',
+        success: 'var(--success)',
+        danger: 'var(--danger)',
+        warning: 'var(--warning)',
       },
-      animation: {
-        'fade-in': 'fadeIn 0.5s ease-out',
-        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-        'slide-in-right': 'slideInRight 0.6s ease-out forwards',
-        'pulse-soft': 'pulseSoft 3s infinite ease-in-out',
-        'float': 'float 6s ease-in-out infinite',
+      fontFamily: {
+        headline: ['Sora', 'sans-serif'],
+        sans: ['Manrope', 'sans-serif'],
+        code: ['"IBM Plex Mono"', 'monospace'],
       },
       keyframes: {
         fadeIn: {
@@ -27,28 +26,20 @@ export default {
           '100%': { opacity: '1' },
         },
         fadeInUp: {
-          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '0%': { opacity: '0', transform: 'translateY(18px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        slideInRight: {
-          '0%': { opacity: '0', transform: 'translateX(-20px)' },
-          '100%': { opacity: '1', transform: 'translateX(0)' },
-        },
-        pulseSoft: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.8' },
-        },
         float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        }
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
       },
-      fontFamily: {
-        headline: ['Manrope', 'sans-serif'],
-        sans: ['Inter', 'sans-serif'],
-        code: ['JetBrains Mono', 'monospace'],
-      }
+      animation: {
+        'fade-in': 'fadeIn 0.35s ease-out forwards',
+        'fade-in-up': 'fadeInUp 0.45s ease-out forwards',
+        float: 'float 7s ease-in-out infinite',
+      },
     },
   },
   plugins: [],
-}
+};

@@ -1,33 +1,81 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardCheck,
+  FileCode2,
+  MessageSquareText,
+  RefreshCw,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 import { useEdiStore } from '../store/useEdiStore';
-import { AlertCircle, AlertTriangle, CheckCircle2, MessageSquare, Send, Zap } from 'lucide-react';
 import SemanticClaimViewer from '../components/SemanticClaimViewer';
+import { MetricCard, Pill } from '../components/ui';
+
+const tabs = [
+  { id: 'validation', label: 'Validation', icon: ClipboardCheck },
+  { id: 'chat', label: 'AI Chat', icon: MessageSquareText },
+];
+
+const TypewriterText = ({ text, animate }) => {
+  const [visibleText, setVisibleText] = useState(animate ? '' : text);
+
+  useEffect(() => {
+    if (!animate) {
+      setVisibleText(text);
+      return undefined;
+    }
+
+    let index = 0;
+    setVisibleText('');
+    const timer = window.setInterval(() => {
+      index += 1;
+      setVisibleText(text.slice(0, index));
+      if (index >= text.length) {
+        window.clearInterval(timer);
+      }
+    }, 12);
+
+    return () => window.clearInterval(timer);
+  }, [animate, text]);
+
+  return (
+    <>
+      {visibleText.split('\n').map((line, lineIndex) => (
+        <React.Fragment key={`${line}-${lineIndex}`}>
+          {line}
+          <br />
+        </React.Fragment>
+      ))}
+      {animate && visibleText.length < text.length ? (
+        <span className="inline-block h-4 w-[2px] animate-pulse bg-current align-middle opacity-70" />
+      ) : null}
+    </>
+  );
+};
 
 const Claims = () => {
   const navigate = useNavigate();
-  const parsedData = useEdiStore(state => state.parsedData);
+  const parsedData = useEdiStore((state) => state.parsedData);
 
-  // Combine initial errors and warnings from the JSON structure
   const initialErrors = parsedData?.validation?.errors || parsedData?.parsed?.errors || parsedData?.errors || [];
   const initialWarnings = parsedData?.validation?.warnings || parsedData?.parsed?.warnings || parsedData?.warnings || [];
-  
+
   const [validating, setValidating] = useState(false);
   const [validationItems, setValidationItems] = useState([...initialErrors, ...initialWarnings]);
-
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatting, setChatting] = useState(false);
+  const [activeTab, setActiveTab] = useState('validation');
   const chatEndRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState('validation'); // Defaulted to validation to see the new UI
-
   useEffect(() => {
-    if (!parsedData) {
-      navigate('/');
-    }
-  }, [parsedData, navigate]);
+    if (!parsedData) navigate('/');
+  }, [navigate, parsedData]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,13 +83,49 @@ const Claims = () => {
 
   if (!parsedData) return null;
 
-  const rawEdi = parsedData.parsed?.raw_edi || parsedData.raw_edi || '';
-  const rawLines = rawEdi ? rawEdi.split('~') : [];
+  const payload = parsedData.parsed || parsedData;
+  const transactionInfo = payload.transaction_info || parsedData.transaction_info || {};
+  const txType = payload.transaction_type || transactionInfo.transaction_type || parsedData.transaction_type || 'EDI';
+  const rawEdi = payload.raw_edi || parsedData.raw_edi || '';
+  const rawSegments = rawEdi
+    ? rawEdi
+        .split('~')
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+        .map((segment) => `${segment}~`)
+    : [];
+
+  const errorCount = validationItems.filter((item) => item.severity === 'ERROR' || !item.severity).length;
+  const warningCount = validationItems.filter((item) => item.severity === 'WARNING').length;
+  const segmentCount = payload.raw_segment_count || rawSegments.length || 0;
+
+  const stats = useMemo(
+    () => [
+      {
+        label: 'Transaction Type',
+        value: txType,
+        hint: 'Detected from parsed transaction metadata.',
+        accent: 'var(--accent-primary)',
+      },
+      {
+        label: 'Segments',
+        value: `${segmentCount}`,
+        hint: 'Segment count shown for raw transaction review.',
+        accent: 'var(--accent-secondary)',
+      },
+      {
+        label: 'Validation Flags',
+        value: `${errorCount + warningCount}`,
+        hint: 'Combined errors and warnings in the current review state.',
+        accent: errorCount > 0 ? 'var(--danger)' : 'var(--accent-warm)',
+      },
+    ],
+    [errorCount, segmentCount, txType, warningCount],
+  );
 
   const handleFullValidate = async () => {
     setValidating(true);
     try {
-      const payload = parsedData.parsed || parsedData;
       const res = await axios.post('/api/validate/full', { parsed: payload });
       const newErrors = res.data.errors || res.data.validation?.errors || [];
       const newWarnings = res.data.warnings || res.data.validation?.warnings || [];
@@ -53,246 +137,310 @@ const Claims = () => {
     }
   };
 
-  const handleChat = async (e) => {
-    e.preventDefault();
+  const handleChat = async (event) => {
+    event.preventDefault();
     if (!chatMessage.trim() || chatting) return;
 
-    const newMsg = chatMessage.trim();
-    setChatMessage('');
-    setChatting(true);
-
-    const historyForApi = chatHistory.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      content: msg.content
+    const message = chatMessage.trim();
+    const historyForApi = chatHistory.map((entry) => ({
+      role: entry.role === 'user' ? 'user' : 'model',
+      content: entry.content,
     }));
 
-    setChatHistory(prev => [...prev, { role: 'user', content: newMsg }]);
+    setChatMessage('');
+    setChatting(true);
+    setChatHistory((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: 'user', content: message, animate: false },
+    ]);
 
     try {
       const res = await axios.post('/api/chat', {
-        message: newMsg,
+        message,
         history: historyForApi,
         parsed_context: {
-          transaction_info: parsedData.parsed?.transaction_info || parsedData.transaction_info,
-          tree: parsedData.parsed?.tree || parsedData.tree,
-          raw_segment_count: parsedData.parsed?.raw_segment_count || parsedData.raw_segment_count,
-          validation_errors: validationItems.filter(i => i.severity !== 'WARNING'),
-          validation_warnings: validationItems.filter(i => i.severity === 'WARNING')
-        }
+          transaction_info: payload.transaction_info || parsedData.transaction_info,
+          tree: payload.tree || parsedData.tree,
+          raw_segment_count: segmentCount,
+          validation_errors: validationItems.filter((item) => item.severity !== 'WARNING'),
+          validation_warnings: validationItems.filter((item) => item.severity === 'WARNING'),
+        },
       });
-      setChatHistory(prev => [...prev, { role: 'model', content: res.data.response || res.data.reply || 'No response from model.' }]);
+
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          id: `model-${Date.now()}`,
+          role: 'model',
+          content: res.data.response || res.data.reply || 'No response from model.',
+          animate: true,
+        },
+      ]);
     } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'model', content: '⚠️ Error communicating with AI assistant.' }]);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          id: `model-error-${Date.now()}`,
+          role: 'model',
+          content: 'Unable to contact the AI assistant right now.',
+          animate: true,
+        },
+      ]);
     } finally {
       setChatting(false);
     }
   };
 
-  const formatRawLine = (line) => {
-    if (!line.trim()) return null;
-    const parts = line.split('*');
-    if (parts.length === 0) return line;
+  const renderValidationItem = (item, index) => {
+    const isWarning = item.severity === 'WARNING';
+    const message =
+      typeof item === 'object' ? item.message || item.description || JSON.stringify(item) : item;
+
     return (
-      <div className="font-code text-xs leading-relaxed mb-1 pb-1 border-b border-slate-100 last:border-0 hover:bg-slate-50 rounded px-1 transition-colors">
-        <span className="font-bold text-accent">{parts[0]}</span>
-        {parts.slice(1).map((p, i) => (
-          <span key={i}>
-            <span className="text-slate-500">*</span>
-            <span className="text-success">{p}</span>
-          </span>
-        ))}
-        <span className="text-slate-500">~</span>
+      <div
+        key={`${message}-${index}`}
+        className={`rounded-[20px] border px-4 py-4 ${
+          isWarning
+            ? 'border-[color:rgba(214,134,29,0.2)] bg-[color:rgba(214,134,29,0.12)]'
+            : 'border-[color:rgba(205,60,68,0.2)] bg-[color:rgba(205,60,68,0.12)]'
+        }`}
+      >
+        <div className="flex gap-3">
+          {isWarning ? (
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          ) : (
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+          )}
+          <div>
+            <p className={`text-sm font-semibold ${isWarning ? 'text-warning' : 'text-danger'}`}>{message}</p>
+            {typeof item === 'object' && (item.rule_id || item.loop || item.segment) ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {item.rule_id ? <Pill tone={isWarning ? 'warning' : 'danger'}>{item.rule_id}</Pill> : null}
+                {item.loop ? <Pill tone="primary">{item.loop}</Pill> : null}
+                {item.segment ? (
+                  <Pill tone="default">
+                    {item.segment}
+                    {item.element ? `-${item.element}` : ''}
+                  </Pill>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     );
   };
 
-  const errorCount = validationItems.filter(i => i.severity === 'ERROR' || !i.severity).length;
-  const warningCount = validationItems.filter(i => i.severity === 'WARNING').length;
+  const renderRawSegment = (segment, index) => (
+    <div key={`${segment}-${index}`} className="grid grid-cols-[auto_1fr] gap-3">
+      <span className="mt-0.5 rounded-full bg-[color:rgba(15,108,189,0.12)] px-2.5 py-1 font-code text-[11px] font-semibold text-primary">
+        {String(index + 1).padStart(3, '0')}
+      </span>
+      <code className="min-w-0 whitespace-pre-wrap break-all text-[13px] leading-7 text-[var(--text-primary)]">
+        {segment}
+      </code>
+    </div>
+  );
 
   return (
-    <div className="flex-grow flex flex-col h-screen pt-24 pb-6 px-6 relative">
-      
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-accent/10 blur-[120px] animate-pulse-soft"></div>
-        <div className="absolute bottom-[10%] -right-[5%] w-[30%] h-[30%] rounded-full bg-primary/10 blur-[100px] animate-pulse-soft" style={{animationDelay: '1s'}}></div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 h-full gap-6 relative z-10">
-
-        {/* Left: Raw EDI */}
-        <div className="glass-panel flex flex-col overflow-hidden animate-fade-in-up shadow-lg" style={{animationDelay: '0.1s'}}>
-          <div className="px-5 py-4 bg-white/50 border-b border-slate-200/50 flex items-center justify-between backdrop-blur-md">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Zap className="w-4 h-4 text-accent" /> Raw X12
-            </h3>
+    <div className="page-shell space-y-6">
+      <section className="glass-panel-strong p-6 sm:p-8">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-4xl">
+            <span className="hero-badge border-[var(--border-strong)] text-primary">Claim Review Workspace</span>
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[var(--text-primary)] sm:text-5xl">
+              Review structured claim data, validation, raw EDI, and AI guidance side by side.
+            </h1>
+            <p
+              className="mt-3 max-w-3xl text-base leading-7 sm:text-lg"
+              style={{ color: 'color-mix(in srgb, var(--text-primary) 72%, var(--bg-base) 28%)' }}
+            >
+              This workspace is denser and more reliable-looking, with the semantic tree kept visible while supporting panels stay one click away.
+            </p>
           </div>
-          <div className="flex-grow overflow-auto p-5 custom-scrollbar">
-            {rawLines.map((line, idx) => (
-              <React.Fragment key={idx}>
-                {formatRawLine(line)}
-              </React.Fragment>
-            ))}
+          <div className="flex justify-start xl:justify-end">
+            <button type="button" onClick={handleFullValidate} className="btn-secondary" disabled={validating}>
+              {validating ? 'Re-validating...' : 'Re-Validate'}
+              <RefreshCw className={`h-4 w-4 ${validating ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
 
-        {/* Center: Semantic Tree */}
-        <div className="glass-panel flex flex-col overflow-hidden animate-fade-in-up shadow-xl shadow-slate-200/50" style={{animationDelay: '0.2s'}}>
-          <SemanticClaimViewer treeData={parsedData.parsed?.tree || parsedData.tree} />
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Pill tone="primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            Route preserved: `/api/chat` and `/api/validate/full`
+          </Pill>
+          <Pill tone={errorCount > 0 ? 'danger' : 'success'}>
+            {errorCount > 0 ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            {errorCount > 0 ? `${errorCount} critical issue(s)` : 'No critical validation issues'}
+          </Pill>
+          <Pill tone={warningCount > 0 ? 'warning' : 'default'}>
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {warningCount} warning(s)
+          </Pill>
         </div>
+      </section>
 
-        {/* Right: Tabbed Errors & Chat */}
-        <div className="flex flex-col gap-4 overflow-hidden h-full">
-          
-          {/* Tab Selector */}
-          <div className="flex bg-white/40 backdrop-blur-md rounded-xl p-1.5 border border-slate-200/50 shadow-sm shrink-0">
+      <section className="grid gap-4 lg:grid-cols-3">
+        {stats.map((stat) => (
+          <MetricCard key={stat.label} {...stat} />
+        ))}
+      </section>
+
+      <section className="grid items-start gap-5 xl:grid-cols-3">
+        <div className="glass-panel-strong overflow-hidden xl:h-[760px]">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">Semantic View</p>
+              <h2 className="mt-1 text-xl font-bold text-[var(--text-primary)]">Parsed claim structure</h2>
+            </div>
             <button
-              onClick={() => setActiveTab('chat')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'chat'
-                  ? 'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
+              type="button"
+              onClick={handleFullValidate}
+              className="hidden rounded-full border border-[var(--border-default)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-elevated)] md:inline-flex xl:hidden"
+              disabled={validating}
             >
-              <MessageSquare className={`w-4 h-4 ${activeTab === 'chat' ? 'text-accent' : ''}`} />
-              AI Assistant
-            </button>
-            <button
-              onClick={() => setActiveTab('validation')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                activeTab === 'validation'
-                  ? 'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
-            >
-              <AlertCircle className={`w-4 h-4 ${activeTab === 'validation' ? (errorCount > 0 ? 'text-red-500' : 'text-amber-500') : ''}`} />
-              Validation Status
-              {(errorCount > 0 || warningCount > 0) && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ml-1 ${errorCount > 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-                  {validationItems.length}
-                </span>
-              )}
+              {validating ? 'Re-validating...' : 'Re-Validate'}
             </button>
           </div>
+          <div className="h-[calc(100%-77px)]">
+            <SemanticClaimViewer treeData={payload.tree || parsedData.tree || payload} />
+          </div>
+        </div>
 
-          {/* Active Tab Content Area */}
-          <div className="flex-grow overflow-hidden relative">
-            
-            {/* Validation Panel */}
-            {activeTab === 'validation' && (
-              <div className="glass-panel flex flex-col h-full overflow-hidden animate-fade-in-up shadow-lg absolute inset-0">
-                <div className="px-5 py-4 bg-white/50 border-b border-slate-200/50 flex items-center justify-between backdrop-blur-sm">
-                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    Validation Results
-                  </h3>
-                  <button
-                    onClick={handleFullValidate}
-                    disabled={validating}
-                    className="glass-button text-xs py-1.5 px-4"
-                  >
-                    {validating ? 'Validating...' : 'Re-Validate'}
-                  </button>
+        <div className="glass-panel-strong flex flex-col overflow-hidden xl:h-[760px]">
+          <div className="border-b px-5 py-4">
+            <div className="flex flex-wrap gap-2">
+              {tabs.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={`tab-chip ${
+                    activeTab === id
+                      ? 'border-[var(--border-strong)] bg-[color:rgba(15,108,189,0.12)] text-primary'
+                      : 'border-[var(--border-default)] bg-transparent text-[var(--text-secondary)]'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {activeTab === 'validation' ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="grid gap-3 border-b px-5 py-4 sm:grid-cols-2">
+                <div className="rounded-[18px] bg-[color:rgba(205,60,68,0.12)] px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-danger">Errors</p>
+                  <p className="mt-2 text-2xl font-extrabold text-danger">{errorCount}</p>
                 </div>
-                <div className="flex-grow overflow-auto p-4 space-y-3 custom-scrollbar">
-                  {validationItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-500/50" />
-                      <p className="text-sm font-medium">No validation issues detected.</p>
+                <div className="rounded-[18px] bg-[color:rgba(214,134,29,0.14)] px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-warning">Warnings</p>
+                  <p className="mt-2 text-2xl font-extrabold text-warning">{warningCount}</p>
+                </div>
+              </div>
+              <div className="custom-scrollbar flex-1 overflow-auto px-5 py-5">
+                {validationItems.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-[var(--text-secondary)]">
+                    <CheckCircle2 className="h-10 w-10 text-success" />
+                    <p className="font-semibold">No validation issues detected.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">{validationItems.map(renderValidationItem)}</div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'chat' ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="custom-scrollbar flex-1 overflow-auto bg-[var(--bg-base)] px-5 py-5">
+                {chatHistory.length === 0 ? (
+                  <div className="rounded-[22px] border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface-strong)] px-5 py-6 text-sm leading-6 text-[var(--text-secondary)]">
+                    Ask focused questions like:
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {['Why might this claim be denied?', 'Summarize the key validation issues.', 'Which segment should I inspect first?'].map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => setChatMessage(prompt)}
+                          className="rounded-full border px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-[color:rgba(15,108,189,0.08)]"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    validationItems.map((item, idx) => {
-                      const isWarning = item.severity === 'WARNING';
-                      return (
-                        <div 
-                          key={idx} 
-                          className={`p-3 border rounded-xl flex gap-3 text-sm shadow-sm transition-colors ${
-                            isWarning 
-                              ? 'bg-amber-50/60 border-amber-200' 
-                              : 'bg-red-50/60 border-red-200'
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {chatHistory.map((message) => (
+                      <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-[88%] rounded-[20px] px-4 py-3 text-sm leading-6 ${
+                            message.role === 'user'
+                              ? 'bg-primary text-white'
+                              : 'border bg-[var(--bg-surface-strong)] text-[var(--text-primary)]'
                           }`}
                         >
-                          {isWarning ? (
-                            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                          )}
-                          <div className="flex flex-col gap-1.5">
-                            <span className={`font-medium ${isWarning ? 'text-amber-900' : 'text-red-900'}`}>
-                              {typeof item === 'object' ? item.message || item.description || JSON.stringify(item) : item}
-                            </span>
-                            {typeof item === 'object' && (item.rule_id || item.loop) && (
-                              <div className={`text-xs font-code flex flex-wrap gap-2 ${isWarning ? 'text-amber-700/80' : 'text-red-700/80'}`}>
-                                {item.rule_id && <span>[{item.rule_id}]</span>}
-                                {item.loop && <span>{item.loop}</span>}
-                                {item.segment && <span>{item.segment}{item.element ? `-${item.element}` : ''}</span>}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Chat Panel */}
-            {activeTab === 'chat' && (
-              <div className="glass-panel flex flex-col h-full overflow-hidden animate-fade-in-up shadow-lg absolute inset-0">
-                <div className="flex-grow overflow-auto p-5 space-y-4 custom-scrollbar bg-slate-50/30">
-                  {chatHistory.length === 0 ? (
-                    <div className="text-center text-slate-500 text-sm mt-8 animate-fade-in">
-                      Ask me anything about this claim. Try:<br />
-                      <span className="inline-block mt-3 font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 shadow-sm cursor-pointer hover:bg-primary/20 transition-colors" onClick={() => setChatMessage("Why was this claim denied?")}>"Why was this claim denied?"</span>
-                    </div>
-                  ) : (
-                    chatHistory.map((msg, idx) => (
-                      <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`} style={{animationDuration: '0.3s'}}>
-                        <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed ${msg.role === 'user'
-                            ? 'bg-gradient-to-br from-primary to-accent text-white rounded-tr-sm shadow-primary/20'
-                            : 'bg-white border border-slate-200/60 text-slate-700 rounded-tl-sm backdrop-blur-sm'
-                          }`}>
-                          {msg.content.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                          <TypewriterText text={message.content} animate={message.role === 'model' && message.animate} />
                         </div>
                       </div>
-                    ))
-                  )}
-                  {chatting && (
-                    <div className="flex justify-start animate-fade-in">
-                      <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center">
-                        <div className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-bounce"></div>
-                        <div className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                        <div className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    ))}
+                    {chatting ? (
+                      <div className="flex justify-start">
+                        <div className="rounded-[20px] border bg-[var(--bg-surface-strong)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+                          Thinking...
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
+                    ) : null}
+                    <div ref={chatEndRef} />
+                  </div>
+                )}
+              </div>
+              <form onSubmit={handleChat} className="border-t p-4">
+                <div className="flex items-end gap-3">
+                  <textarea
+                    value={chatMessage}
+                    onChange={(event) => setChatMessage(event.target.value)}
+                    className="input-shell min-h-[92px] resize-none"
+                    placeholder="Ask about denials, loops, segments, or validation outcomes..."
+                  />
+                  <button type="submit" className="btn-primary h-[52px] px-4" disabled={chatting || !chatMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </button>
                 </div>
+              </form>
+            </div>
+          ) : null}
+        </div>
 
-                <div className="p-4 bg-white/60 border-t border-slate-200/50 backdrop-blur-md">
-                  <form onSubmit={handleChat} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatMessage}
-                      onChange={(e) => setChatMessage(e.target.value)}
-                      placeholder="Ask about specific segments..."
-                      className="flex-grow bg-white/80 border border-slate-200 rounded-full px-5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all shadow-inner"
-                      disabled={chatting}
-                    />
-                    <button
-                      type="submit"
-                      disabled={chatting || !chatMessage.trim()}
-                      className="glass-button !p-2.5 !rounded-full aspect-square flex items-center justify-center shrink-0"
-                    >
-                      <Send className="w-4 h-4 ml-0.5" />
-                    </button>
-                  </form>
-                </div>
+        <div className="glass-panel-strong flex flex-col overflow-hidden xl:h-[760px]">
+          <div className="border-b px-5 py-4">
+            <div className="flex flex-wrap gap-2">
+              <span className="tab-chip border-[var(--border-strong)] bg-[color:rgba(15,108,189,0.12)] text-primary">
+                <FileCode2 className="h-4 w-4" />
+                Raw EDI
+              </span>
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-[var(--text-primary)]">Original transaction segments</h2>
+          </div>
+          <div className="custom-scrollbar flex-1 overflow-auto bg-[var(--bg-base)] px-5 py-5">
+            {rawSegments.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-[var(--text-secondary)]">
+                <FileCode2 className="h-10 w-10 text-primary" />
+                <p className="font-semibold">No raw EDI content available.</p>
+              </div>
+            ) : (
+              <div className="rounded-[22px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] px-4 py-4">
+                <div className="space-y-4">{rawSegments.map(renderRawSegment)}</div>
               </div>
             )}
-            
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

@@ -1,31 +1,138 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Activity } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, Menu, Moon, SunMedium, X } from 'lucide-react';
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
+import { NavLink, useLocation } from 'react-router-dom';
+
+const navLinks = [
+  { path: '/', label: 'Dashboard' },
+  { path: '/claims', label: 'Claim Review' },
+  { path: '/reconcile', label: 'Reconcile' },
+  { path: '/batch', label: 'Batch' },
+  { path: '/about', label: 'About' },
+  { path: '/team', label: 'Team' },
+];
 
 const Navbar = () => {
-  const getNavClass = ({ isActive }) => 
-    `text-sm font-medium transition-all px-4 py-1.5 rounded-full ${isActive ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm'}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [scrolled, setScrolled] = useState(false);
+  const { scrollY } = useScroll();
+  const location = useLocation();
+
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    setScrolled(latest > 24);
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  const navClass = useMemo(
+    () =>
+      `fixed inset-x-0 top-0 z-50 transition duration-300 ${
+        scrolled ? 'pt-3' : 'pt-4'
+      }`,
+    [scrolled],
+  );
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 md:p-6 pointer-events-none">
-      <nav className="glass-panel pointer-events-auto w-full max-w-6xl px-4 py-3 flex justify-between items-center animate-fade-in-up">
-        <NavLink to="/" className="flex items-center gap-2 hover:-translate-y-0.5 transition-transform duration-300">
-          <div className="bg-gradient-to-tr from-primary to-accent p-1.5 rounded-xl shadow-md shadow-primary/20">
-            <Activity className="w-5 h-5 text-white" />
+    <header className={navClass}>
+      <div className="mx-auto max-w-[1320px] px-5 sm:px-6 lg:px-6">
+        <div
+          className={`glass-panel flex items-center justify-between px-4 py-3 sm:px-5 ${
+            scrolled ? 'shadow-[var(--shadow-md)]' : ''
+          }`}
+        >
+          <NavLink to="/" className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[color:rgba(15,108,189,0.12)] text-primary">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-headline text-lg font-bold">ClaimCraft</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
+                EDI Intelligence
+              </p>
+            </div>
+          </NavLink>
+
+          <nav className="hidden items-center gap-2 lg:flex">
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.path}
+                to={link.path}
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-[color:rgba(15,108,189,0.12)] text-primary'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] transition hover:text-primary"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOpen((prev) => !prev)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-[var(--bg-surface-strong)] text-[var(--text-secondary)] lg:hidden"
+              aria-label="Open menu"
+            >
+              {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-          <span className="font-headline font-extrabold text-xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tracking-tight">ClaimCraft</span>
-        </NavLink>
-        
-        <div className="hidden lg:flex gap-1 items-center bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
-          <NavLink to="/" className={getNavClass}>Home</NavLink>
-          <NavLink to="/reconcile" className={getNavClass}>835 vs 837</NavLink>
-          <NavLink to="/batch" className={getNavClass}>Batch Processing</NavLink>
-          <NavLink to="/claims" className={getNavClass}>Single Claim</NavLink>
-          <NavLink to="/about" className={getNavClass}>About</NavLink>
-          <NavLink to="/team" className={getNavClass}>Team</NavLink>
         </div>
-      </nav>
-    </div>
+
+        <AnimatePresence>
+          {isOpen ? (
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2 }}
+              className="glass-panel mt-3 overflow-hidden lg:hidden"
+            >
+              <div className="grid gap-1 p-2">
+                {navLinks.map((link) => (
+                  <NavLink
+                    key={link.path}
+                    to={link.path}
+                    className={({ isActive }) =>
+                      `rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                        isActive
+                          ? 'bg-[color:rgba(15,108,189,0.12)] text-primary'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                      }`
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </header>
   );
 };
 

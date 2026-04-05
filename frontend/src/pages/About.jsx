@@ -1,80 +1,162 @@
 import React from 'react';
-import { Target, Zap, Shield, Code } from 'lucide-react';
+import { Bot, Database, Search, Shield, Sparkles, Workflow, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { PageHeader, SurfaceCard, fadeUp } from '../components/ui';
 
-const FeatureCard = ({ icon: Icon, title, description }) => (
-  <div className="glass-panel p-8 hover:-translate-y-1 transition-all duration-300 group">
-    <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center text-accent mb-6 group-hover:scale-110 transition-transform group-hover:bg-accent group-hover:text-white shadow-sm">
-      <Icon className="w-7 h-7" />
-    </div>
-    <h3 className="text-xl font-bold mb-3 tracking-tight text-slate-800">{title}</h3>
-    <p className="text-slate-500 leading-relaxed text-sm font-medium">{description}</p>
-  </div>
-);
+const pillars = [
+  {
+    icon: Search,
+    title: 'The problem',
+    body: 'Healthcare EDI is accurate but difficult to inspect manually. Important details get buried in loops, qualifiers, service lines, and adjustment codes that slow down review.',
+  },
+  {
+    icon: Database,
+    title: 'The architecture',
+    body: 'A Python parsing engine structures the transaction, while the React interface turns those structures into readable panels, semantic views, and guided workflows.',
+  },
+  {
+    icon: Shield,
+    title: 'The trust model',
+    body: 'The product is designed to feel dependable: stronger hierarchy, denser organization, clearer actions, and lower visual noise for analysts and operators.',
+  },
+  {
+    icon: Bot,
+    title: 'The AI layer',
+    body: 'Claim-aware chat sits next to validation and semantic data so users can ask questions, summarize issues, and investigate denials without leaving context.',
+  },
+];
+
+const workflowSteps = [
+  {
+    title: 'Upload',
+    body: 'Users can submit an EDI file directly, upload remittance files for comparison, or work with archive-based batch processing.',
+  },
+  {
+    title: 'Parse',
+    body: 'The backend maps raw segments into transaction-aware structures such as providers, subscribers, claims, service lines, and adjustments.',
+  },
+  {
+    title: 'Review',
+    body: 'Semantic view, raw EDI, validation feedback, and AI chat are kept together so users do not lose context while debugging or auditing.',
+  },
+  {
+    title: 'Act',
+    body: 'The interface helps users identify missing data, invalid codes, payment mismatch, and claim-level issues faster than reading raw EDI directly.',
+  },
+];
+
+const userOutcomes = [
+  'Understand what transaction they are looking at without decoding raw segments manually.',
+  'See which loops, fields, and values matter in a clearer, structured representation.',
+  'Catch validation errors and warnings before they affect downstream claim handling.',
+  'Compare billed and paid outcomes with a more usable reconciliation workflow.',
+  'Ask follow-up questions in plain language through the AI-guided claim assistant.',
+];
 
 const About = () => {
   return (
-    <div className="flex-grow relative pt-28 pb-16 px-6">
-      <div className="max-w-5xl mx-auto animate-fade-in-up md:px-6">
-        
-        <div className="text-center mb-20 space-y-4 relative z-10">
-          <div className="inline-block px-5 py-2 rounded-full bg-accent/10 text-accent font-semibold text-sm mb-3 font-code border border-accent/20 shadow-sm backdrop-blur-sm">
-            INSPIRON 5.0 Hackathon Project
-          </div>
-          <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tracking-tight drop-shadow-sm pb-2">
-            Demystifying X12 EDI
-          </h1>
-          <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
-            Healthcare communication relies on the archaic X12 EDI standard. ClaimCraft brings modern AI tooling to make it human-readable and actionable.
-          </p>
-        </div>
+    <div className="page-shell space-y-6">
+      <section className="glass-panel-strong p-6 sm:p-8 lg:p-10">
+        <PageHeader
+          eyebrow="About ClaimCraft"
+          title="A modern interpretation layer for healthcare EDI."
+          description="ClaimCraft turns raw X12 transactions into a structured, trustworthy review workspace for parsing, validation, semantic inspection, and payment intelligence."
+        />
+      </section>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-20">
-          <div className="relative p-10 rounded-3xl shadow-xl shadow-primary/20 overflow-hidden group hover:-translate-y-1 transition-transform duration-300 bg-gradient-to-br from-primary to-accent text-white">
-            <h2 className="text-3xl font-bold mb-4 font-headline drop-shadow-md">The Problem</h2>
-            <p className="text-blue-50 leading-relaxed mb-8 font-medium">
-              X12 EDI files (like the 837 Claim or 835 Remittance) are dense, segment-based text files composed of tildes, asterisks, and obscure codes. Billing teams spend hours manually parsing segments to track down claim errors, resulting in delayed revenue and compliance risks.
-            </p>
-            <div className="p-5 bg-black/30 rounded-2xl font-code text-xs text-blue-100 backdrop-blur-md border border-white/10 shadow-inner">
-              NM1*IL*1*SMITH*JOHN*A***MI*123456789~<br/>
-              CLM*12345*150.00***11:B:1*Y*A*Y*I~<br/>
-              HI*BK:D123~
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {pillars.map(({ icon: Icon, title, body }, index) => (
+          <motion.div key={title} {...fadeUp} transition={{ duration: 0.4, delay: index * 0.06 }}>
+            <SurfaceCard className="h-full p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[color:rgba(15,108,189,0.12)] text-primary">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h2 className="mt-4 text-xl font-bold text-[var(--text-primary)]">{title}</h2>
+              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{body}</p>
+            </SurfaceCard>
+          </motion.div>
+        ))}
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <SurfaceCard className="p-6 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="rounded-[20px] bg-[color:rgba(10,143,122,0.12)] p-4 text-accent">
+              <Zap className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">Why this frontend direction matters</h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                EDI tools often feel either too raw for operations teams or too generic to support real claim workflows. ClaimCraft is designed to sit between those extremes: strong enough for technical review, clear enough for analysts, and polished enough to inspire trust from first use.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+                The interface emphasizes clear structure, useful motion, and efficient space usage so users can move from upload to interpretation without visual confusion or wasted effort.
+              </p>
             </div>
           </div>
+        </SurfaceCard>
 
-          <div className="glass-panel p-10 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-accent/10 rounded-full blur-3xl group-hover:bg-accent/20 transition-colors duration-500"></div>
-            <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-headline relative z-10">Our Solution</h2>
-            <p className="text-slate-500 leading-relaxed font-medium relative z-10 mb-8">
-              ClaimCraft acts as an intelligent intermediary. By uploading an EDI file, our backend recursive parser structures the data instantly into interactive nested models.
-            </p>
-            <ul className="mt-6 space-y-4 relative z-10 font-semibold">
-               <li className="flex items-center gap-4 text-slate-700"><div className="p-2 bg-success/10 rounded-lg text-success"><Zap className="w-5 h-5"/></div> Instant JSON Visualization</li>
-               <li className="flex items-center gap-4 text-slate-700"><div className="p-2 bg-danger/10 rounded-lg text-danger"><Shield className="w-5 h-5"/></div> Automated SNIP Validation</li>
-               <li className="flex items-center gap-4 text-slate-700"><div className="p-2 bg-primary/10 rounded-lg text-primary"><Code className="w-5 h-5"/></div> Context-Aware AI Chat</li>
-               <li className="flex items-center gap-4 text-slate-700"><div className="p-2 bg-inspiron/10 rounded-lg text-inspiron"><Target className="w-5 h-5"/></div> Deep 835 vs 837 Reconciliation</li>
-            </ul>
+        <SurfaceCard className="p-6 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="rounded-[20px] bg-[color:rgba(227,165,43,0.14)] p-4 text-warm">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">What users should feel</h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                Calm, guided, and confident. Every screen should answer three questions fast: what file am I looking at, what is the system telling me, and what should I do next?
+              </p>
+              <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+                That is why the product focuses on cleaner hierarchy, stronger labels, visible system state, and fewer disconnected workflows.
+              </p>
+            </div>
           </div>
-        </div>
+        </SurfaceCard>
+      </section>
 
-        <div className="grid sm:grid-cols-3 gap-6">
-          <FeatureCard 
-            icon={Target} 
-            title="For Billing Teams" 
-            description="Visually trace claim denials directly to specific segments without deciphering codes manually." 
-          />
-          <FeatureCard 
-            icon={Shield} 
-            title="For Payers" 
-            description="Automate batch validation of incoming EDI streams to ensure compliance instantly." 
-          />
-          <FeatureCard 
-            icon={Code} 
-            title="For Developers" 
-            description="Tap into structured JSON APIs via ClaimCraft to build custom healthcare integrations faster." 
-          />
-        </div>
+      <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <SurfaceCard className="p-6 sm:p-8">
+          <div className="flex items-center gap-3">
+            <div className="rounded-[18px] bg-[color:rgba(15,108,189,0.12)] p-3 text-primary">
+              <Workflow className="h-5 w-5" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">How ClaimCraft works</h2>
+          </div>
 
-      </div>
+          <div className="mt-6 space-y-4">
+            {workflowSteps.map((step, index) => (
+              <div key={step.title} className="rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:rgba(15,108,189,0.12)] text-sm font-extrabold text-primary">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--text-primary)]">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{step.body}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+
+        <SurfaceCard className="p-6 sm:p-8">
+          <div className="flex items-center gap-3">
+            <div className="rounded-[18px] bg-[color:rgba(10,143,122,0.12)] p-3 text-accent">
+              <Shield className="h-5 w-5" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-[var(--text-primary)]">What this helps users do</h2>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {userOutcomes.map((item) => (
+              <div key={item} className="rounded-[18px] border border-[var(--border-default)] bg-[var(--bg-surface-strong)] px-4 py-3 text-sm leading-6 text-[var(--text-secondary)]">
+                {item}
+              </div>
+            ))}
+          </div>
+        </SurfaceCard>
+      </section>
     </div>
   );
 };
