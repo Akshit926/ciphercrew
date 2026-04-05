@@ -40,7 +40,7 @@ const Reconcile = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/parse', formData);
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE}/parse`, formData);
       if (type === 837) setData837(res.data);
       if (type === 835) setData835(res.data);
     } catch (err) {
@@ -67,7 +67,7 @@ const Reconcile = () => {
     setError(null);
 
     try {
-      const res = await axios.post('/api/reconcile', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE}/reconcile`, {
         parsed_837: data837,
         parsed_835: data835,
       });
