@@ -23,6 +23,13 @@ const tabs = [
   { id: 'chat', label: 'AI Chat', icon: MessageSquareText },
 ];
 
+const buildValidationItems = (data) => [
+  ...(data?.parsed?.errors || data?.errors || []),
+  ...(data?.validation?.errors || []),
+  ...(data?.parsed?.warnings || data?.warnings || []),
+  ...(data?.validation?.warnings || []),
+];
+
 const TypewriterText = ({ text, animate }) => {
   const [visibleText, setVisibleText] = useState(animate ? '' : text);
 
@@ -64,17 +71,8 @@ const Claims = () => {
   const navigate = useNavigate();
   const parsedData = useEdiStore((state) => state.parsedData);
 
-  const initialErrors = [
-    ...(parsedData?.parsed?.errors || parsedData?.errors || []),
-    ...(parsedData?.validation?.errors || [])
-  ];
-  const initialWarnings = [
-    ...(parsedData?.parsed?.warnings || parsedData?.warnings || []),
-    ...(parsedData?.validation?.warnings || [])
-  ];
-
   const [validating, setValidating] = useState(false);
-  const [validationItems, setValidationItems] = useState([...initialErrors, ...initialWarnings]);
+  const [validationItems, setValidationItems] = useState(() => buildValidationItems(parsedData));
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatting, setChatting] = useState(false);
@@ -86,6 +84,13 @@ const Claims = () => {
   useEffect(() => {
     if (!parsedData) navigate('/');
   }, [navigate, parsedData]);
+
+  useEffect(() => {
+    setValidationItems(buildValidationItems(parsedData));
+    setChatHistory([]);
+    setChatMessage('');
+    setActiveTab('validation');
+  }, [parsedData]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -322,7 +327,7 @@ const Claims = () => {
             </button>
           </div>
           <div className="h-[calc(100%-77px)]">
-            <SemanticClaimViewer treeData={payload.tree || parsedData.tree || payload} />
+            <SemanticClaimViewer treeData={payload} />
           </div>
         </div>
 
