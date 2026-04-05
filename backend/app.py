@@ -491,6 +491,10 @@ app.include_router(reconcile.router, tags=["Reconcile"])
 app.include_router(export.router, tags=["Export"])
 app.include_router(autofix.router, tags=["AutoFix"])
 
+@app.get("/")
+@app.head("/")
+def read_root():
+    return {"status": "ok", "message": "ClaimCraft API is up and running!"}
 # ── Health ────────────────────────────────────────────────────────────────────
 @app.get("/health", tags=["System"])
 def health():
